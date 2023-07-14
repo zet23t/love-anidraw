@@ -1,0 +1,11 @@
+- console: A console log would be nice
+- Tool palette
+    - Drawing
+    - Selection
+- Color selection
+    - make pico8 color palette for now
+- generic inspector for modifying components
+- Path structure
+    - create mesh instead of rendering points
+- Performance improvements
+    - draw on canvas, refresh only on change

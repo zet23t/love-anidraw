@@ -1,0 +1,12 @@
+[submodule "lib/love-util"]
+	path = lib/love-util
+	url = git@github.com:zet23t/love-util.git
+[submodule "lib/love-ui"]
+	path = lib/love-ui
+	url = git@github.com:zet23t/love-ui.git
+[submodule "lib/nativefs"]
+	path = lib/nativefs
+	url = git@github.com:zet23t/nativefs.git
+[submodule "lib/love-math"]
+	path = lib/love-math
+	url = git@github.com:zet23t/love-math.git
