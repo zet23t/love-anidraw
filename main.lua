@@ -12,6 +12,7 @@ local scroll_area_widget            = require "love-ui.widget.scroll_area_widget
 local rectfill_component            = require "love-ui.components.generic.rectfill_component"
 local distance_squared              = require "love-math.geom.3d.distance_squared"
 local ui_theme                      = require "love-ui.ui_theme.ui_theme"
+local menu_widget                   = require "love-ui.widget.menu_widget"
 
 local anidraw                       = require "anidraw"
 
@@ -67,12 +68,25 @@ local function decorate_as_cmd_bar(left_bar)
 end
 
 local function init(root_rect)
+    local paint_component = {
+        scale = 1,
+        translate_x = 0,
+        translate_y = 0,
+        rotate = 0,
+        transform = love.math.newTransform(),
+    }
+
+    local function clear_canvas()
+        paint_component.canvas_draw_state = nil
+    end
+
+
     root_rect:add_component(menubar_widget:new({ File_1 = function() end }, 1))
     local client_space = ui_rect:new(0, 0, 0, 0, root_rect, parent_size_matcher_component:new(19, 0, 0, 0))
     local top_bar_rect = ui_rect:new(0, 0, 0, 22, client_space, parent_size_matcher_component:new(0, 0, true, 0),
         rectfill_component:new(5))
     top_bar_rect:add_component(linear_layouter_component:new(1, true, 0, 0, 0, 0, 0))
-    local right_bar_rect = ui_rect:new(0, 0, 200, 0, client_space, parent_size_matcher_component:new(0, 0, 0, true),
+    local right_bar_rect = ui_rect:new(0, 0, 300, 0, client_space, parent_size_matcher_component:new(0, 0, 0, true),
         rectfill_component:new(2))
     local bottom_bar = ui_rect:new(0, 0, right_bar_rect.w, 260, root_rect,
         parent_size_matcher_component:new(true, right_bar_rect.w, 0, 0))
@@ -100,13 +114,19 @@ local function init(root_rect)
     left_bar:set_selected(pen_rect)
 
     decorate_as_cmd_bar(top_bar_rect)
-    top_bar_rect:cmd(ui_theme.icon.save_disk, function() end)
-    top_bar_rect:cmd(ui_theme.icon.open_folder, function() end)
+    top_bar_rect:cmd(ui_theme.icon.save_disk, function() anidraw:save() end)
+    top_bar_rect:cmd(ui_theme.icon.open_folder, function()
+        anidraw:load()
+        clear_canvas()
+    end)
     top_bar_rect:cmd_space()
     top_bar_rect:cmd(ui_theme.icon.undo, function() end)
     top_bar_rect:cmd(ui_theme.icon.redo, function() end)
     top_bar_rect:cmd_space(8)
-    local function add_slider(width, height, parent, min, max, value, on_change)
+    local invlerp = require "love-math.invlerp"
+
+    local function add_slider(title, width, height, parent, min, max, value, on_change)
+        value = invlerp(min, max, value)
         local slider_rect = ui_rect:new(0, 0, width, height, parent, rectfill_component:new(1))
         local slider_bar_rect = ui_rect:new(2, 2, slider_rect.w - 4, slider_rect.h - 4, slider_rect,
             rectfill_component:new(2, 6))
@@ -117,7 +137,7 @@ local function init(root_rect)
             local maxw = slider_rect.w - 4
             slider_bar_rect.w = math.max(1, math.min(maxw, value * maxw))
             value = min + (max - min) * value
-            slider_text_rect:trigger_on_components("set_text", string.format("%.2f", value))
+            slider_text_rect:trigger_on_components("set_text", string.format("%s%.2f", title or " ", value))
             on_change(value)
         end
         slider_rect:add_component {
@@ -128,14 +148,14 @@ local function init(root_rect)
         set_slider_value(value)
     end
 
-    top_bar_rect:label("Pressure size:")
-    add_slider(250, 22, top_bar_rect, -50, 50, .7, function(value)
+    --top_bar_rect:label("Pressure size:")
+    add_slider("Pressure size: ", 250, 22, top_bar_rect, -50, 50, .1, function(value)
         anidraw.tools.pen.size = value
     end)
 
     top_bar_rect:cmd_space(8)
-    top_bar_rect:label("min size:")
-    add_slider(250, 22, top_bar_rect, -50, 50, .51, function(value)
+    -- top_bar_rect:label("min size:")
+    add_slider("Min size: ", 250, 22, top_bar_rect, -50, 50, 0, function(value)
         anidraw.tools.pen.min_size = value
     end)
 
@@ -144,7 +164,7 @@ local function init(root_rect)
         anidraw.tools.pen.boundary_paint = state
     end, true)
 
-    local colorpicker_rect = ui_rect:new(540, 20, 200, 200, right_bar_rect)
+    local colorpicker_rect = ui_rect:new(540, 20, right_bar_rect.w, 200, right_bar_rect)
     colorpicker_rect:add_component(rectfill_component:new(0))
     for i = 0, 15 do
         local x = i % 4
@@ -158,17 +178,137 @@ local function init(root_rect)
     end
 
 
-    local paint_component = {
-        scale = 1,
-        translate_x = 0,
-        translate_y = 0,
-        rotate = 0,
-        transform = love.math.newTransform(),
-    }
-
-    local function clear_canvas()
-        paint_component.canvas_draw_state = nil
+    local object_inspector = ui_rect:new(0, 0, right_bar_rect.w, 400, right_bar_rect)
+    local object_inspector_scroll_area = scroll_area_widget:new(ui_theme, right_bar_rect.w - 16, 200)
+    object_inspector_scroll_area.scroll_content:add_component(linear_layouter_component:new(2, false, 0, 0, 0, 0, 2))
+    object_inspector:add_component(object_inspector_scroll_area)
+    object_inspector:add_component(rectfill_component:new(6))
+    local function add_component_inspector(parent, component, owner, list, list_index)
+        local title = ui_rect:new(0, 0, parent.w, 20, parent, rectfill_component:new(15),
+            text_component:new(component.name or component:tostr(), 1, 0, 0, 0, 0, 0))
+        ui_theme:decorate_button_skin(ui_rect:new(title.w - 20, 0, 20, 20, title), nil,
+            ui_theme.icon.close_x,function()
+                table.remove(list, list_index)
+                owner:run_processing()
+                anidraw:trigger_selected_objects_changed()
+                clear_canvas()
+            end)
+        
+        if list_index < #list then
+            ui_theme:decorate_button_skin(ui_rect:new(title.w - 40, 0, 20, 20, title), nil,
+                ui_theme.icon.tiny_triangle_down,
+                function()
+                    list[list_index], list[list_index + 1] = list[list_index + 1], list[list_index]
+                    owner:run_processing()
+                    anidraw:trigger_selected_objects_changed()
+                    clear_canvas()
+                end)
+        end
+        if not component.editables then
+            return
+        end
+        for i = 1, #component.editables do
+            local info = component.editables[i]
+            local key = info.key
+            local value = component[key] or info.default
+            local rect = ui_rect:new(0, 0, parent.w, 20, parent)
+            if info.type == "number_slider" then
+                add_slider((info.name or key) .. ": ", parent.w, 20, rect, info.min, info.max, value, function(value)
+                    component[key] = value
+                    owner:run_processing()
+                    clear_canvas()
+                end)
+            elseif info.type == "color" then
+                rect:add_component(text_component:new((info.name or key) .. ":", 0, 0, 0, 0, 0, 0))
+                local color_preview = ui_rect:new(parent.w - 100, 0, 100, 20, rect,
+                    rectfill_component:new(value, 0))
+                local color_menu = {}
+                for i = 0, 15 do
+                    local index = i
+                    color_menu["color_" .. (i + 1)] = {
+                        no_sub_menu = true,
+                        draw = function(s, rect)
+                            local x, y = rect:to_world()
+                            require "love-ui.pico8api":rectfill(x, y, x + rect.w, y + rect.h, index)
+                        end,
+                        func = function()
+                            component[key] = pico8_colors[index]
+                            color_preview:trigger_on_components("set_fill", pico8_colors[index])
+                            clear_canvas()
+                        end
+                    }
+                end
+                color_preview:add_component {
+                    was_triggered = function()
+                        local x, y = color_preview:to_world(0, 0)
+                        ui_rect:new(x, y, 10, 10, rect:root()):add_component(menu_widget:new(color_menu, rect))
+                    end
+                }
+            end
+        end
     end
+    local function component_add_function(object, component_list, class_list)
+        return function(cmp, rect)
+            local menu = {}
+            for i = 1, #class_list do
+                local class = class_list[i]
+                menu[class:gsub("_", " ") .. "_" .. i] = function()
+                    component_list[#component_list + 1] = require("ad_stroke." .. class):new()
+                    object:run_processing()
+                    clear_canvas()
+                    anidraw:trigger_selected_objects_changed()
+                end
+            end
+            local x, y = rect:to_world(0, 0)
+            ui_rect:new(x, y, 10, 10, rect:root()):add_component(menu_widget:new(menu, rect))
+        end
+    end
+
+    anidraw:add_object_selection_changed_listener(function(list)
+        object_inspector_scroll_area.scroll_content:remove_all_children()
+        for i = 1, #list do
+            local object = list[i]
+            local object_rect = ui_rect:new(0, 0, object_inspector_scroll_area.scroll_content.w, 20,
+                object_inspector_scroll_area.scroll_content)
+            object_rect:add_component(rectfill_component:new(6))
+            object_rect:add_component(linear_layouter_component:new(2, false, 0, 0, 0, 0, 2))
+            ui_rect:new(0, 0, object_rect.w, 20, object_rect, rectfill_component:new(9),
+                text_component:new(object.name or object:tostr(), 1))
+            if object.processing_components then
+                ui_rect:new(0, 0, object_rect.w - 10, 2, object_rect, rectfill_component:new(0))
+                ui_rect:new(0, 0, object_rect.w, 20, object_rect, rectfill_component:new(10),
+                    text_component:new("Processors", 1))
+                for i = 1, #object.processing_components do
+                    add_component_inspector(object_rect, object.processing_components[i], object,
+                        object.processing_components, i)
+                    ui_rect:new(0, 0, object_rect.w - 10, 1, object_rect, rectfill_component:new(0))
+                end
+                ui_theme:decorate_button_skin(ui_rect:new(0, 0, object_rect.w, 20, object_rect), "Add processor", nil,
+                    component_add_function(object, object.processing_components, {
+                        "ad_stroke_direct_processor",
+                        "ad_stroke_boundary_processor",
+                    }))
+                ui_rect:new(0, 0, 10, 10, object_rect)
+            end
+            if object.drawing_components then
+                ui_rect:new(0, 0, object_rect.w - 10, 2, object_rect, rectfill_component:new(0))
+                ui_rect:new(0, 0, object_rect.w, 20, object_rect, rectfill_component:new(10),
+                    text_component:new("Renderers", 1))
+                for i = 1, #object.drawing_components do
+                    add_component_inspector(object_rect, object.drawing_components[i], object, object.drawing_components,
+                        i)
+                    ui_rect:new(0, 0, object_rect.w - 10, 1, object_rect, rectfill_component:new(0))
+                end
+                ui_theme:decorate_button_skin(ui_rect:new(0, 0, object_rect.w, 20, object_rect), "Add renderer", nil,
+                    component_add_function(object, object.drawing_components, {
+                        "ad_stroke_simple_renderer",
+                        "ad_stroke_triangulator_renderer",
+                    }))
+            end
+        end
+    end)
+
+
 
     local timeline_scroll_area = scroll_area_widget:new(ui_theme, 180, 200)
     timeline:add_component(timeline_scroll_area)
@@ -178,6 +318,9 @@ local function init(root_rect)
         map_timeline = function(cmp, rect, instruction)
             if cmp.timeline_map[instruction] then return end
             local instruction_rect = ui_rect:new(0, 0, rect.w, 20, rect, rectfill_component:new(nil, 0))
+            ui_theme:decorate_on_click(instruction_rect, function()
+                anidraw:select_object(instruction)
+            end)
             ui_theme:decorate_button_skin(ui_rect:new(0, 0, 20, 20, instruction_rect,
                 weighted_position_component:new(1, 0.5)), nil, ui_theme.icon.close_x, function()
                 anidraw:delete_instruction(instruction)
@@ -275,8 +418,8 @@ local function init(root_rect)
     local touches = {}
     local touch_cnt = 0
     local has_pen = false
-    function love.touch_released(id, x, y, dx, dy, pressure)
-        love.touch_moved(id, x, y, dx, dy, pressure)
+    function love.touchreleased(id, x, y, dx, dy, pressure)
+        love.touchmoved(id, x, y, dx, dy, pressure)
 
         x, y = canvas_rect:to_local(x, y)
 
@@ -296,7 +439,7 @@ local function init(root_rect)
         end
     end
 
-    function love.touch_pressed(id, x, y, dx, dy, pressure)
+    function love.touchpressed(id, x, y, dx, dy, pressure)
         if not touches[id] then
             touch_cnt = touch_cnt + 1
             local transform = paint_component.transform
@@ -333,12 +476,12 @@ local function init(root_rect)
         end
     end
 
-    function love.touch_moved(id, x, y, dx, dy, pressure)
+    function love.touchmoved(id, x, y, dx, dy, pressure)
         if not paint_component.tracking_strokes then
             return
         end
         local transform = paint_component.transform
-        local entries = pen_reading(id, function(pressure, px, py)
+        local entries = pen_reading(id, function(pressure, px, py, index)
             local zoom = paint_component.zoom
             local x, y = canvas_rect:to_local(px, py)
             x, y = transform:inverseTransformPoint(x, y)
@@ -347,7 +490,6 @@ local function init(root_rect)
                 coroutine.resume(current_stroke, paint_component, x, y, pressure)
             end
             coroutine.resume(current_stroke, x, y, pressure)
-
             --print(x-px,y-py)
         end)
         if entries and #entries > 0 or has_pen then
@@ -385,32 +527,50 @@ local function init(root_rect)
                 transform:translate(paint_component.translate_x, paint_component.translate_y)
             end
 
+            -- two point gesture
             if touch_b then
-                update_transform()
+                -- converting the touch points to canvas space (calling it "w" for "world")
                 local wax, way = canvas_rect:to_local(touch_a.x, touch_a.y)
                 local wbx, wby = canvas_rect:to_local(touch_b.x, touch_b.y)
                 local wcx, wcy = canvas_rect:to_local(touch_a.prev_x, touch_a.prev_y)
-                draw_debug_circle(wax, way, 90, 1, 0, 0)
-                draw_debug_circle(wbx, wby, 90, 1, 0, 0)
+                -- keeping the circles because it's useful for videos
+                draw_debug_circle(wax, way, 30, 1, 0, 0)
+                draw_debug_circle(wbx, wby, 30, 1, 0, 0)
+                -- rotation is independent of transformations, so we can calculate it without much hassle
                 local angle = math.atan2(way - wby, wax - wbx) - math.atan2(wcy - wby, wcx - wbx)
 
+                -- original (o) and new (n) distances between the touch points in transformed space
+                -- (pin = original touch point locations in transformed space)
                 local odx, ody = touch_a.pin_x - touch_b.pin_x, touch_a.pin_y - touch_b.pin_y
                 local odist = (odx * odx + ody * ody) ^ .5
+                -- inverse (i) coordinates, so transformed space; it's where I struggled as it's
+                -- counter intuitive; explanation: This is how we get the canvas space coordinates into
+                -- the transformed space. Like the pinned coordinates.
                 local iax, iay = transform:inverseTransformPoint(wax, way)
                 local ibx, iby = transform:inverseTransformPoint(wbx, wby)
+                -- new distance between the touch points in transformed space (analog to odx and ody)
                 local ndx, ndy = iax - ibx, iay - iby
+                -- new distance, analog to odist
                 local ndist = (ndx * ndx + ndy * ndy) ^ .5
                 local scale = ndist / odist
+                -- we can now calculate the required scaling to make the distance match the touch points
+                -- note: The max/min operation isn't good; it makes the translation jump between finger points
+                -- because both points try to match the new location (whichever touch gets updated last)
                 paint_component.scale = math.max(0.2, math.min(16, paint_component.scale * scale))
-
-                local bx, by = touch_b.pin_x, touch_b.pin_y
                 paint_component.rotate = paint_component.rotate + angle
+                -- update the transform using new scale and rotation
                 update_transform()
-                local nwbx, nwby = transform:inverseTransformPoint(wbx, wby)
+
+                -- update to the new position: Using the center of both points is stable (using a or b alone isn't)
+                local bx, by = (touch_b.pin_x + touch_a.pin_x) / 2, (touch_b.pin_y + touch_a.pin_y) / 2
+                local nwbx, nwby = transform:inverseTransformPoint((wbx + wax) / 2, (wby + way) / 2)
+                -- using the current center position in transformed space, we can calculate the translation
+                -- needed to counteract rotation / scaling by comparing it to the pinned position
                 paint_component.translate_x = paint_component.translate_x + nwbx - bx
                 paint_component.translate_y = paint_component.translate_y + nwby - by
+                -- another update to apply the translation
                 update_transform()
-            else
+            else -- one point gesture; much simpler
                 local wax, way = canvas_rect:to_local(touch_a.x, touch_a.y)
                 local iax, iay = transform:inverseTransformPoint(wax, way)
                 paint_component.translate_x = paint_component.translate_x + iax - touch_a.pin_x
@@ -470,6 +630,11 @@ local function init(root_rect)
             love.graphics.print("FPS: " .. love.timer.getFPS(), rect:to_world())
         end
     }
+
+    anidraw:load()
+    anidraw:replay(16)
+    clear_canvas()
+    anidraw:trigger_selected_objects_changed()
 end
 
 require "love-ui.uitk-setup" {

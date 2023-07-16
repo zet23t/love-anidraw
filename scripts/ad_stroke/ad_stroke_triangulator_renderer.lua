@@ -1,5 +1,8 @@
 local ad_stroke_triangulator_renderer = require "love-util.class" "ad_stroke_triangulator_renderer"
-function ad_stroke_triangulator_renderer:new(color, size, min_size)
+ad_stroke_triangulator_renderer.editables = {
+    {key = "color"; type = "color"; name="Color"; default = {1, 1, 1, 1}},
+}
+function ad_stroke_triangulator_renderer:new(color)
     return self:create {
         color = {unpack(color or {1, 1, 1, 1})}
     }

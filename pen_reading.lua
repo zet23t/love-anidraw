@@ -101,16 +101,17 @@ local function read_pen_history(id,callback)
                 local penInfo = pointerInfo[offset]
                 local ptPixelLocation = penInfo.pointerInfo.ptPixelLocation
                 ScreenToClient(penInfo.pointerInfo.hwndTarget, ptPixelLocation)
-                entries[#entries+1] = {penInfo.pressure / 1024, ptPixelLocation.x, ptPixelLocation.y}
+                entries[#entries+1] = {penInfo.pressure / 1024, ptPixelLocation.x, ptPixelLocation.y,#entries+1}
                 offset = offset + 1
                 if offset >= maxEntries then
-                    return pointerInfo
+                    goto callback
                 end
             end
         end
+        ::callback::
         if callback then
             for i=#entries,1,-1 do
-                callback(unpack(entries[i]))
+               callback(unpack(entries[i]))
             end
         end
     end
