@@ -1,11 +1,19 @@
 - console: A console log would be nice
 - Tool palette
-    - Drawing
-    - Selection
+    [x] Drawing
+    [ ] Selection
+    [ ] Erasing
+    [ ] Color picker
+    [ ]
 - Color selection
-    - make pico8 color palette for now
+    [x] make pico8 color palette for now
 - generic inspector for modifying components
+    [ ] add UI
+    [ ] Selection of created strokes
+    [ ] Configuration of components
+- Layers
+
 - Path structure
-    - create mesh instead of rendering points
+    [?] create mesh instead of rendering points
 - Performance improvements
-    - draw on canvas, refresh only on change
+    [x] draw on canvas, refresh only on change

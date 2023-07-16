@@ -43,14 +43,14 @@ function anidraw:set_color(rgba)
     self.current_color = rgba
 end
 
-function anidraw:draw()
-    if self.grid_enabled then
+function anidraw:draw(draw_state, draw_temporary)
+    if self.grid_enabled and draw_temporary then
         love.graphics.setColor(0,0,0,0.1)
-        for x=0,love.graphics.getWidth(),self.grid_size do
-            love.graphics.line(x, 0, x, love.graphics.getHeight())
+        for x=0,self.canvas_size[1],self.grid_size do
+            love.graphics.line(x, 0, x, self.canvas_size[2])
         end
-        for y=0,love.graphics.getHeight(),self.grid_size do
-            love.graphics.line(0, y, love.graphics.getWidth(), y)
+        for y=0,self.canvas_size[2],self.grid_size do
+            love.graphics.line(0, y, self.canvas_size[1], y)
         end
         love.graphics.setColor(1,1,1,1)
     end
@@ -60,15 +60,25 @@ function anidraw:draw()
         local remaining = t
         for i=1,#self.instructions do
             local instruction = self.instructions[i]
-            instruction:draw(remaining)
-            --print(i, remaining)
+            if remaining < instruction.finish_time then 
+                if draw_temporary then
+                    instruction:draw(remaining)
+                end
+                break
+            else 
+                if i > (draw_state or 0) then
+                    draw_state = i
+                    instruction:draw(remaining)
+                end
+            end
             remaining = remaining - (instruction.finish_time)
-            if remaining < 0 then break end
         end
+        
     end
-    if self.current_action then
+    if self.current_action and draw_temporary then
         self.current_action:draw(t)
     end
+    return draw_state
 end
 
 return anidraw

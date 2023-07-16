@@ -12,7 +12,7 @@ function ad_stroke_direct_processor:process(ad_stroke, input_data, output_data)
         local p = input_data[i]
         local x,y = p[1], p[2]
         local sqd = distance_squared(x,y,0,lx,ly,0)
-        if not lx or sqd > 25 then
+        if not lx or sqd > 9 then
             lx,ly = x,y
             local d = sqd ^ .5
             local dt = p.t - lt
@@ -21,7 +21,7 @@ function ad_stroke_direct_processor:process(ad_stroke, input_data, output_data)
                 local v = d / dt
                 vel = vel * .8 + v * .2
             end
-            output_data[#output_data+1] = {x,y, t = p.t, pressure = (p.pressure or 500) / (vel * 0.00001 + 1)}
+            output_data[#output_data+1] = {x,y, t = p.t, pressure = (p.pressure or 500) / (vel * 0.0000 + 1)}
         end
 
     end

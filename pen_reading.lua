@@ -90,6 +90,9 @@ local function read_pen_history(id,callback)
     entriesCount[0] = maxEntries
     pointerCount[0] = 1
     local result = getPointerFramePenInfoHistory(id or 0, entriesCount, pointerCount, pointerInfo)
+    if result == 0 then
+        return nil
+    end
     local entries = {}
     if result == 1 then
         local offset = 0

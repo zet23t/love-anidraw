@@ -18,27 +18,9 @@ local anidraw                       = require "anidraw"
 
 love.window.setTitle("love-ani-draw")
 
-
-local function init(root_rect)
-    root_rect:add_component(menubar_widget:new({ File_1 = function() end }, 1))
-    local client_space = ui_rect:new(0, 0, 0, 0, root_rect, parent_size_matcher_component:new(19, 0, 0, 0))
-    local right_bar_rect = ui_rect:new(0, 0, 200, 0, client_space, parent_size_matcher_component:new(0, 0, 0, true),
-        rectfill_component:new(2))
-    local bottom_bar = ui_rect:new(0, 0, right_bar_rect.w, 260, root_rect,
-        parent_size_matcher_component:new(true, right_bar_rect.w, 0, 0))
-    local left_bar = ui_rect:new(0, 0, 22, 100, client_space, parent_size_matcher_component:new(0, true, bottom_bar.h, 0),
-        rectfill_component:new(5))
-    local timeline = ui_rect:new(0, 0, right_bar_rect.w, 200, bottom_bar, parent_size_matcher_component:new(30, 0, 0, 0))
-
-    local canvas_rect = ui_rect:new(20, 20, 500, 500, root_rect,
-        parent_size_matcher_component:new(19 + 2, right_bar_rect.w + 2, bottom_bar.h + 2, left_bar.w + 2))
-    canvas_rect:add_component(rectfill_component:new(6))
-
-    right_bar_rect:add_component(linear_layouter_component:new(2, true, 0, 0, 0, 0, 5))
-    left_bar:add_component(linear_layouter_component:new(2, false, 0, 0, 0, 0, 0))
+local function decorate_as_cmd_bar(left_bar)
     local groups = {}
-
-    local function set_selected(rect)
+    function left_bar:set_selected(rect)
         local group_list = rect.group_list
         if group_list then
             for i = 1, #group_list do
@@ -48,43 +30,119 @@ local function init(root_rect)
         rect.cmd_fn()
     end
 
-    local function cmd(icon, fn, group)
-        local rect = ui_rect:new(0, 0, left_bar.w, left_bar.w, left_bar)
+    function left_bar:cmd(icon, fn, group)
+        local w = math.max(self.w, self.h)
+        local rect = ui_rect:new(0, 0, w, w, self)
         rect.cmd_fn = fn
         if type(group) == "string" then
             local group_list = groups[group]
             ui_theme:decorate_push_button_skin(rect, not group_list, nil, icon, function(state)
-                set_selected(rect)
+                self:set_selected(rect)
             end)
             if not group_list then
                 group_list = {}
                 groups[group] = group_list
-                set_selected(rect)
+                self:set_selected(rect)
             end
             group_list[#group_list + 1] = rect
             rect.group_list = group_list
         elseif group then
             ui_theme:decorate_push_button_skin(rect, nil, nil, icon, fn)
-
         else
             ui_theme:decorate_button_skin(rect, nil, icon, fn)
         end
         return rect
     end
-    local function cmd_space()
-        ui_rect:new(0, 0, left_bar.w, 4, left_bar)
-    end
-    cmd(ui_theme.icon.undo, function() end)
-    cmd(ui_theme.icon.redo, function() end)
-    cmd_space()
-    cmd(ui_theme.icon.cursor, function() end, "tools")
-    cmd(ui_theme.icon.hand, function() end, "tools")
-    local pen_rect = cmd(ui_theme.icon.pen, function() anidraw:set_tool("pen") end, "tools")
-    cmd(ui_theme.icon.eraser, function() end, "tools")
-    cmd_space()
-    cmd(ui_theme.icon.grid, function(state) anidraw.grid_enabled = state end, true)
 
-    set_selected(pen_rect)
+    function left_bar:cmd_space(s)
+        ui_rect:new(0, 0, s or 4, s or 4, left_bar)
+    end
+
+    function left_bar:label(text)
+        local tf = text_component:new(text, 6)
+        tf:set_fitting_width(true)
+        local rect = ui_rect:new(0, 0, 22, 22, self, tf)
+        rect:update(0, 0)
+    end
+end
+
+local function init(root_rect)
+    root_rect:add_component(menubar_widget:new({ File_1 = function() end }, 1))
+    local client_space = ui_rect:new(0, 0, 0, 0, root_rect, parent_size_matcher_component:new(19, 0, 0, 0))
+    local top_bar_rect = ui_rect:new(0, 0, 0, 22, client_space, parent_size_matcher_component:new(0, 0, true, 0),
+        rectfill_component:new(5))
+    top_bar_rect:add_component(linear_layouter_component:new(1, true, 0, 0, 0, 0, 0))
+    local right_bar_rect = ui_rect:new(0, 0, 200, 0, client_space, parent_size_matcher_component:new(0, 0, 0, true),
+        rectfill_component:new(2))
+    local bottom_bar = ui_rect:new(0, 0, right_bar_rect.w, 260, root_rect,
+        parent_size_matcher_component:new(true, right_bar_rect.w, 0, 0))
+    local left_bar = ui_rect:new(0, 0, 22, 22, client_space,
+        parent_size_matcher_component:new(top_bar_rect.h, true, bottom_bar.h, 0),
+        rectfill_component:new(5))
+    local timeline = ui_rect:new(0, 0, right_bar_rect.w, 200, bottom_bar, parent_size_matcher_component:new(30, 0, 0, 0))
+
+    local canvas_rect = ui_rect:new(20, 20, 500, 500, root_rect,
+        parent_size_matcher_component:new(19 + top_bar_rect.h + 2, right_bar_rect.w + 2, bottom_bar.h + 2, left_bar.w + 2))
+    canvas_rect:add_component(rectfill_component:new(6))
+
+    right_bar_rect:add_component(linear_layouter_component:new(2, true, 0, 0, 0, 0, 5))
+    left_bar:add_component(linear_layouter_component:new(2, false, 0, 0, 0, 0, 0))
+
+    decorate_as_cmd_bar(left_bar)
+    left_bar:cmd_space(8)
+    left_bar:cmd(ui_theme.icon.cursor, function() end, "tools")
+    left_bar:cmd(ui_theme.icon.hand, function() end, "tools")
+    local pen_rect = left_bar:cmd(ui_theme.icon.pen, function() anidraw:set_tool("pen") end, "tools")
+    left_bar:cmd(ui_theme.icon.eraser, function() end, "tools")
+    left_bar:cmd_space()
+    left_bar:cmd(ui_theme.icon.grid, function(state) anidraw.grid_enabled = state end, true)
+
+    left_bar:set_selected(pen_rect)
+
+    decorate_as_cmd_bar(top_bar_rect)
+    top_bar_rect:cmd(ui_theme.icon.save_disk, function() end)
+    top_bar_rect:cmd(ui_theme.icon.open_folder, function() end)
+    top_bar_rect:cmd_space()
+    top_bar_rect:cmd(ui_theme.icon.undo, function() end)
+    top_bar_rect:cmd(ui_theme.icon.redo, function() end)
+    top_bar_rect:cmd_space(8)
+    local function add_slider(width, height, parent, min, max, value, on_change)
+        local slider_rect = ui_rect:new(0, 0, width, height, parent, rectfill_component:new(1))
+        local slider_bar_rect = ui_rect:new(2, 2, slider_rect.w - 4, slider_rect.h - 4, slider_rect,
+            rectfill_component:new(2, 6))
+        local slider_text_rect = ui_rect:new(0, 0, slider_rect.w, slider_rect.h, slider_rect,
+            text_component:new(""))
+
+        local function set_slider_value(value)
+            local maxw = slider_rect.w - 4
+            slider_bar_rect.w = math.max(1, math.min(maxw, value * maxw))
+            value = min + (max - min) * value
+            slider_text_rect:trigger_on_components("set_text", string.format("%.2f", value))
+            on_change(value)
+        end
+        slider_rect:add_component {
+            is_pressed_down = function(cmp, rect, mx, my)
+                set_slider_value(math.max(0, math.min(1, mx / rect.w)))
+            end
+        }
+        set_slider_value(value)
+    end
+
+    top_bar_rect:label("Pressure size:")
+    add_slider(250, 22, top_bar_rect, -50, 50, .7, function(value)
+        anidraw.tools.pen.size = value
+    end)
+
+    top_bar_rect:cmd_space(8)
+    top_bar_rect:label("min size:")
+    add_slider(250, 22, top_bar_rect, -50, 50, .51, function(value)
+        anidraw.tools.pen.min_size = value
+    end)
+
+    top_bar_rect:cmd_space(8)
+    top_bar_rect:cmd(ui_theme.icon.boundary_paint, function(state)
+        anidraw.tools.pen.boundary_paint = state
+    end, true)
 
     local colorpicker_rect = ui_rect:new(540, 20, 200, 200, right_bar_rect)
     colorpicker_rect:add_component(rectfill_component:new(0))
@@ -100,6 +158,17 @@ local function init(root_rect)
     end
 
 
+    local paint_component = {
+        scale = 1,
+        translate_x = 0,
+        translate_y = 0,
+        rotate = 0,
+        transform = love.math.newTransform(),
+    }
+
+    local function clear_canvas()
+        paint_component.canvas_draw_state = nil
+    end
 
     local timeline_scroll_area = scroll_area_widget:new(ui_theme, 180, 200)
     timeline:add_component(timeline_scroll_area)
@@ -112,6 +181,7 @@ local function init(root_rect)
             ui_theme:decorate_button_skin(ui_rect:new(0, 0, 20, 20, instruction_rect,
                 weighted_position_component:new(1, 0.5)), nil, ui_theme.icon.close_x, function()
                 anidraw:delete_instruction(instruction)
+                clear_canvas()
             end)
             cmp.timeline_map[instruction] = instruction_rect
         end,
@@ -131,22 +201,31 @@ local function init(root_rect)
         end
     }
 
+    local function replay(speed)
+        clear_canvas()
+        anidraw:replay(speed)
+    end
+
     local playback_bar = ui_rect:new(0, 0, right_bar_rect.w, 30, bottom_bar, rectfill_component:new(5))
     playback_bar:add_component(linear_layouter_component:new(1, true, 0, 0, 0, 0, 2))
     local playback_bar_layout = linear_layouter_component:new(1, true, 0, 0, 0, 0, 2)
     ui_theme:decorate_button_skin(ui_rect:new(0, 0, 20, 20, playback_bar), nil, ui_theme.icon.play, function()
-        anidraw:replay()
+        replay()
     end)
 
     ui_theme:decorate_button_skin(ui_rect:new(0, 0, 20, 20, playback_bar), nil, ui_theme.icon.play, function()
-        anidraw:replay(4)
+        replay(4)
+    end)
+
+    ui_theme:decorate_button_skin(ui_rect:new(0, 0, 20, 20, playback_bar), nil, ui_theme.icon.play, function()
+        replay(8)
     end)
 
     ui_theme:decorate_button_skin(ui_rect:new(0, 0, 20, 20, playback_bar), nil, ui_theme.icon.close_x, function()
+        clear_canvas()
         anidraw:clear()
     end)
 
-    local paint_component = {}
 
     local function stroke(self, pos_x, pos_y, pressure)
         anidraw.tools.pen:start(anidraw)
@@ -193,7 +272,9 @@ local function init(root_rect)
     end
 
     local current_stroke
-
+    local touches = {}
+    local touch_cnt = 0
+    local has_pen = false
     function love.touch_released(id, x, y, dx, dy, pressure)
         love.touch_moved(id, x, y, dx, dy, pressure)
 
@@ -206,37 +287,177 @@ local function init(root_rect)
             end
             current_stroke = nil
         end
+        if touches[id] then
+            touches[id] = nil
+            touch_cnt = touch_cnt - 1
+            if touch_cnt == 0 then
+                has_pen = false
+            end
+        end
     end
 
     function love.touch_pressed(id, x, y, dx, dy, pressure)
+        if not touches[id] then
+            touch_cnt = touch_cnt + 1
+            local transform = paint_component.transform
+            local pin_x, pin_y = transform:inverseTransformPoint(canvas_rect:to_local(x, y))
+            touches[id] = {
+                x = x,
+                y = y,
+                dx = 0,
+                dy = 0,
+                prev_x = x,
+                prev_y = y,
+                start_x = x,
+                start_y = y,
+                frames = 0,
+                pin_x = pin_x,
+                pin_y = pin_y
+            }
+        end
+    end
 
+    local debug_draw = {}
+    local function draw_debug_circle(x, y, rad, r, g, b)
+        debug_draw[#debug_draw + 1] = function()
+            love.graphics.setColor(r or 1, g or 0, b or 0)
+            love.graphics.circle("line", x, y, rad or 5)
+            love.graphics.setColor(1, 1, 1)
+        end
+    end
+
+    local function draw_debugs()
+        for i = 1, #debug_draw do
+            debug_draw[i]()
+            debug_draw[i] = nil
+        end
     end
 
     function love.touch_moved(id, x, y, dx, dy, pressure)
-        if paint_component.tracking_strokes then
-            pen_reading(id, function(pressure, px, py)
-                local x, y = canvas_rect:to_local(px, py)
-                if not current_stroke then
-                    current_stroke = coroutine.create(stroke)
-                    coroutine.resume(current_stroke, paint_component, x, y, pressure)
-                end
-                coroutine.resume(current_stroke, x, y, pressure)
+        if not paint_component.tracking_strokes then
+            return
+        end
+        local transform = paint_component.transform
+        local entries = pen_reading(id, function(pressure, px, py)
+            local zoom = paint_component.zoom
+            local x, y = canvas_rect:to_local(px, py)
+            x, y = transform:inverseTransformPoint(x, y)
+            if not current_stroke then
+                current_stroke = coroutine.create(stroke)
+                coroutine.resume(current_stroke, paint_component, x, y, pressure)
+            end
+            coroutine.resume(current_stroke, x, y, pressure)
 
-                --print(x-px,y-py)
-            end)
+            --print(x-px,y-py)
+        end)
+        if entries and #entries > 0 or has_pen then
+            has_pen = true
+            return
+        end
+        local touch = touches[id]
+        if touch then
+            touch.prev_x = touch.x
+            touch.prev_y = touch.y
+            touch.x = x
+            touch.y = y
+            touch.dx = dx
+            touch.dy = dy
+
+            touch.frames = touch.frames + 1
+            if touch.frames < 2 or touch_cnt > 2 then
+                return
+            end
+
+            local transform = paint_component.transform
+            local touch_a = touch
+            local touch_b
+            for _, t in pairs(touches) do
+                if t ~= touch_a then
+                    touch_b = t
+                    break
+                end
+            end
+
+            local function update_transform()
+                transform:reset()
+                transform:rotate(paint_component.rotate)
+                transform:scale(paint_component.scale, paint_component.scale)
+                transform:translate(paint_component.translate_x, paint_component.translate_y)
+            end
+
+            if touch_b then
+                update_transform()
+                local wax, way = canvas_rect:to_local(touch_a.x, touch_a.y)
+                local wbx, wby = canvas_rect:to_local(touch_b.x, touch_b.y)
+                local wcx, wcy = canvas_rect:to_local(touch_a.prev_x, touch_a.prev_y)
+                draw_debug_circle(wax, way, 90, 1, 0, 0)
+                draw_debug_circle(wbx, wby, 90, 1, 0, 0)
+                local angle = math.atan2(way - wby, wax - wbx) - math.atan2(wcy - wby, wcx - wbx)
+
+                local odx, ody = touch_a.pin_x - touch_b.pin_x, touch_a.pin_y - touch_b.pin_y
+                local odist = (odx * odx + ody * ody) ^ .5
+                local iax, iay = transform:inverseTransformPoint(wax, way)
+                local ibx, iby = transform:inverseTransformPoint(wbx, wby)
+                local ndx, ndy = iax - ibx, iay - iby
+                local ndist = (ndx * ndx + ndy * ndy) ^ .5
+                local scale = ndist / odist
+                paint_component.scale = math.max(0.2, math.min(16, paint_component.scale * scale))
+
+                local bx, by = touch_b.pin_x, touch_b.pin_y
+                paint_component.rotate = paint_component.rotate + angle
+                update_transform()
+                local nwbx, nwby = transform:inverseTransformPoint(wbx, wby)
+                paint_component.translate_x = paint_component.translate_x + nwbx - bx
+                paint_component.translate_y = paint_component.translate_y + nwby - by
+                update_transform()
+            else
+                local wax, way = canvas_rect:to_local(touch_a.x, touch_a.y)
+                local iax, iay = transform:inverseTransformPoint(wax, way)
+                paint_component.translate_x = paint_component.translate_x + iax - touch_a.pin_x
+                paint_component.translate_y = paint_component.translate_y + iay - touch_a.pin_y
+                update_transform()
+            end
         end
     end
 
     function paint_component:draw(rect)
+        local s = 1
+        anidraw.grid_size = 128
+        while s < self.scale do
+            s = s * 2
+            anidraw.grid_size = anidraw.grid_size / 2
+        end
+
         --pen_reading()
+        local cw, ch = unpack(anidraw.canvas_size)
+        if not self.canvas or self.canvas:getWidth() ~= cw or self.canvas:getHeight() ~= ch then
+            self.canvas = love.graphics.newCanvas(cw, ch)
+            self.canvas_draw_state = nil
+        end
+        love.graphics.setCanvas(self.canvas)
+        if not self.canvas_draw_state then
+            love.graphics.clear(1, 1, 1, 0)
+        end
+        self.canvas_draw_state = anidraw:draw(self.canvas_draw_state, false)
+        love.graphics.setCanvas()
+
         local x, y = rect:to_world()
         local w, h = rect.w, rect.h
         love.graphics.setScissor(x, y, w, h)
         love.graphics.push()
 
         love.graphics.translate(rect:to_world())
-        love.graphics.scale(1, 1)
-        anidraw:draw()
+        love.graphics.applyTransform(self.transform)
+        love.graphics.setColor(0, 0, 0, 1)
+        love.graphics.rectangle("line", 0, 0, cw, ch)
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.draw(self.canvas)
+        anidraw:draw(self.canvas_draw_state, true)
+        love.graphics.pop()
+
+        love.graphics.push()
+        love.graphics.translate(rect:to_world())
+        draw_debugs()
         love.graphics.pop()
 
         love.graphics.setScissor()
