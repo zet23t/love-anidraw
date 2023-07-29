@@ -13,7 +13,14 @@ end
 function ad_stroke:run_components(components, fn, ...)
     for i=1,#components do
         local cmp = components[i]
-        cmp[fn](cmp, self, ...)
+        if not cmp[fn] then
+            print("warning, no such function: ",fn,cmp)
+                for k,v in pairs(cmp) do
+                    print(k,v)
+                end
+        else
+            cmp[fn](cmp, self, ...)
+        end
     end
 end
 

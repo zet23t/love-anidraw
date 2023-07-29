@@ -17,6 +17,12 @@ local menu_widget                   = require "love-ui.widget.menu_widget"
 local anidraw                       = require "anidraw"
 
 
+do
+    require "ad_stroke.ad_stroke_smoothed_line_processor"
+    require "ad_stroke.ad_stroke_straight_line_processor"
+    require "ad_stroke.ad_stroke_triangulator_renderer"
+end
+
 love.window.setTitle("love-ani-draw")
 
 local function decorate_as_cmd_bar(left_bar)
@@ -76,10 +82,9 @@ local function init(root_rect)
         transform = love.math.newTransform(),
     }
 
-    local function clear_canvas()
+    function anidraw:clear_canvas()
         paint_component.canvas_draw_state = nil
     end
-
 
     root_rect:add_component(menubar_widget:new({ File_1 = function() end }, 1))
     local client_space = ui_rect:new(0, 0, 0, 0, root_rect, parent_size_matcher_component:new(19, 0, 0, 0))
@@ -93,8 +98,7 @@ local function init(root_rect)
     local left_bar = ui_rect:new(0, 0, 22, 22, client_space,
         parent_size_matcher_component:new(top_bar_rect.h, true, bottom_bar.h, 0),
         rectfill_component:new(5))
-    local timeline = ui_rect:new(0, 0, right_bar_rect.w, 200, bottom_bar, parent_size_matcher_component:new(30, 0, 0, 0))
-
+    
     local canvas_rect = ui_rect:new(20, 20, 500, 500, root_rect,
         parent_size_matcher_component:new(19 + top_bar_rect.h + 2, right_bar_rect.w + 2, bottom_bar.h + 2, left_bar.w + 2))
     canvas_rect:add_component(rectfill_component:new(6))
@@ -117,7 +121,7 @@ local function init(root_rect)
     top_bar_rect:cmd(ui_theme.icon.save_disk, function() anidraw:save() end)
     top_bar_rect:cmd(ui_theme.icon.open_folder, function()
         anidraw:load()
-        clear_canvas()
+        anidraw:clear_canvas()
     end)
     top_bar_rect:cmd_space()
     top_bar_rect:cmd(ui_theme.icon.undo, function() end)
@@ -185,13 +189,13 @@ local function init(root_rect)
     object_inspector:add_component(rectfill_component:new(6))
     local function add_component_inspector(parent, component, owner, list, list_index)
         local title = ui_rect:new(0, 0, parent.w, 20, parent, rectfill_component:new(15),
-            text_component:new(component.name or component:tostr(), 1, 0, 0, 0, 0, 0))
+            text_component:new(component.name or (component.tostr and component:tostr()) or "<???>", 1, 0, 0, 0, 0, 0))
         ui_theme:decorate_button_skin(ui_rect:new(title.w - 20, 0, 20, 20, title), nil,
             ui_theme.icon.close_x,function()
                 table.remove(list, list_index)
                 owner:run_processing()
                 anidraw:trigger_selected_objects_changed()
-                clear_canvas()
+                anidraw:clear_canvas()
             end)
         
         if list_index < #list then
@@ -201,7 +205,7 @@ local function init(root_rect)
                     list[list_index], list[list_index + 1] = list[list_index + 1], list[list_index]
                     owner:run_processing()
                     anidraw:trigger_selected_objects_changed()
-                    clear_canvas()
+                    anidraw:clear_canvas()
                 end)
         end
         if not component.editables then
@@ -216,7 +220,7 @@ local function init(root_rect)
                 add_slider((info.name or key) .. ": ", parent.w, 20, rect, info.min, info.max, value, function(value)
                     component[key] = value
                     owner:run_processing()
-                    clear_canvas()
+                    anidraw:clear_canvas()
                 end)
             elseif info.type == "color" then
                 rect:add_component(text_component:new((info.name or key) .. ":", 0, 0, 0, 0, 0, 0))
@@ -234,7 +238,7 @@ local function init(root_rect)
                         func = function()
                             component[key] = pico8_colors[index]
                             color_preview:trigger_on_components("set_fill", pico8_colors[index])
-                            clear_canvas()
+                            anidraw:clear_canvas()
                         end
                     }
                 end
@@ -255,7 +259,7 @@ local function init(root_rect)
                 menu[class:gsub("_", " ") .. "_" .. i] = function()
                     component_list[#component_list + 1] = require("ad_stroke." .. class):new()
                     object:run_processing()
-                    clear_canvas()
+                    anidraw:clear_canvas()
                     anidraw:trigger_selected_objects_changed()
                 end
             end
@@ -287,6 +291,8 @@ local function init(root_rect)
                     component_add_function(object, object.processing_components, {
                         "ad_stroke_direct_processor",
                         "ad_stroke_boundary_processor",
+                        "ad_stroke_straight_line_processor",
+                        "ad_stroke_smoothed_line_processor",
                     }))
                 ui_rect:new(0, 0, 10, 10, object_rect)
             end
@@ -307,45 +313,17 @@ local function init(root_rect)
             end
         end
     end)
+    local bottom_right_bar = ui_rect:new(0, 0, 0, 0, bottom_bar, parent_size_matcher_component:new(30, 0, 0, 300)) 
+    local bottom_left_bar = ui_rect:new(0, 0, 300, 0, bottom_bar, parent_size_matcher_component:new(30, true, 0, 0))
+    
+    require "anidraw.ui.timeline_panel":initialize(bottom_right_bar)
+    require "anidraw.ui.layer_panel":initialize(bottom_left_bar)
 
 
-
-    local timeline_scroll_area = scroll_area_widget:new(ui_theme, 180, 200)
-    timeline:add_component(timeline_scroll_area)
-    timeline_scroll_area.scroll_content:add_component(linear_layouter_component:new(2, false, 0, 0, 0, 0, 2))
-    timeline_scroll_area.scroll_content:add_component {
-        timeline_map = {},
-        map_timeline = function(cmp, rect, instruction)
-            if cmp.timeline_map[instruction] then return end
-            local instruction_rect = ui_rect:new(0, 0, rect.w, 20, rect, rectfill_component:new(nil, 0))
-            ui_theme:decorate_on_click(instruction_rect, function()
-                anidraw:select_object(instruction)
-            end)
-            ui_theme:decorate_button_skin(ui_rect:new(0, 0, 20, 20, instruction_rect,
-                weighted_position_component:new(1, 0.5)), nil, ui_theme.icon.close_x, function()
-                anidraw:delete_instruction(instruction)
-                clear_canvas()
-            end)
-            cmp.timeline_map[instruction] = instruction_rect
-        end,
-        update = function(cmp, rect)
-            local map = {}
-            for i = 1, #anidraw.instructions do
-                local instruction = anidraw.instructions[i]
-                cmp:map_timeline(rect, instruction)
-                map[instruction] = true
-            end
-            for k, v in pairs(cmp.timeline_map) do
-                if not map[k] then
-                    cmp.timeline_map[k] = nil
-                    v:remove()
-                end
-            end
-        end
-    }
+    
 
     local function replay(speed)
-        clear_canvas()
+        anidraw:clear_canvas()
         anidraw:replay(speed)
     end
 
@@ -365,7 +343,7 @@ local function init(root_rect)
     end)
 
     ui_theme:decorate_button_skin(ui_rect:new(0, 0, 20, 20, playback_bar), nil, ui_theme.icon.close_x, function()
-        clear_canvas()
+        anidraw:clear_canvas()
         anidraw:clear()
     end)
 
@@ -633,7 +611,7 @@ local function init(root_rect)
 
     anidraw:load()
     anidraw:replay(16)
-    clear_canvas()
+    anidraw:clear_canvas()
     anidraw:trigger_selected_objects_changed()
 end
 
