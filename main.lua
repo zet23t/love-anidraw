@@ -16,11 +16,18 @@ local menu_widget                   = require "love-ui.widget.menu_widget"
 
 local anidraw                       = require "anidraw"
 
+local processors = {
+    "ad_stroke_smoothed_line_processor";
+    "ad_stroke_straight_line_processor";
+    "ad_stroke_regular_shape_processor";
+    "ad_stroke_triangulator_renderer";
+}
 
 do
-    require "ad_stroke.ad_stroke_smoothed_line_processor"
-    require "ad_stroke.ad_stroke_straight_line_processor"
-    require "ad_stroke.ad_stroke_triangulator_renderer"
+    -- need the classes to be loaded so deserialization can find them
+    for i = 1, #processors do
+        require("ad_stroke."..processors[i])
+    end
 end
 
 love.window.setTitle("love-ani-draw")
@@ -288,12 +295,7 @@ local function init(root_rect)
                     ui_rect:new(0, 0, object_rect.w - 10, 1, object_rect, rectfill_component:new(0))
                 end
                 ui_theme:decorate_button_skin(ui_rect:new(0, 0, object_rect.w, 20, object_rect), "Add processor", nil,
-                    component_add_function(object, object.processing_components, {
-                        "ad_stroke_direct_processor",
-                        "ad_stroke_boundary_processor",
-                        "ad_stroke_straight_line_processor",
-                        "ad_stroke_smoothed_line_processor",
-                    }))
+                    component_add_function(object, object.processing_components, processors))
                 ui_rect:new(0, 0, 10, 10, object_rect)
             end
             if object.drawing_components then

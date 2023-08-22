@@ -1,3 +1,7 @@
+-- Since it took me several minutes to remember what THIS processor is about after a two weeks pause, here's what 
+-- it should do, once it's fully operational:
+-- Take the FIRST point of the stroke, then follow the stroke and when it hits another stroke, it alters the
+-- points to stay on the side it came from.
 local anidraw = require "anidraw.instance"
 local distance_squared = require "love-math.geom.3d.distance_squared"
 local ad_stroke_boundary_processor = require "love-util.class" "ad_stroke_boundary_processor"

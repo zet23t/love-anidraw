@@ -1,3 +1,5 @@
+local debug_draw = {}
+
 local ad_stroke = require "love-util.class" "ad_stroke"
 function ad_stroke:new()
     return self:create {
@@ -36,6 +38,7 @@ end
 
 function ad_stroke:run_processing()
     self.output_data = {}
+    debug_draw[self] = {}
     self:run_components(self.processing_components,"process", self.input_data, self.output_data)
 end
 
@@ -46,8 +49,19 @@ function ad_stroke:add(x,y, pressure)
     self:run_processing()
 end
 
+function ad_stroke:add_debug_draw(fn)
+    debug_draw[self][#debug_draw[self]+1] = fn
+end
+
 function ad_stroke:draw(t)
     self:run_components(self.drawing_components, "draw", self.output_data, t)
+
+    local dd = debug_draw[self]
+    if dd then
+        for i=1,#dd do
+            dd[i]()
+        end
+    end
 end
 
 return ad_stroke
