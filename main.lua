@@ -229,6 +229,12 @@ local function init(root_rect)
                     owner:run_processing()
                     anidraw:clear_canvas()
                 end)
+            elseif info.type == "toggle" then
+                ui_theme:decorate_toggle_skin(rect, (info.name or key), value, function(state)
+                    component[key] = state
+                    owner:run_processing()
+                    anidraw:clear_canvas()
+                end)
             elseif info.type == "color" then
                 rect:add_component(text_component:new((info.name or key) .. ":", 0, 0, 0, 0, 0, 0))
                 local color_preview = ui_rect:new(parent.w - 100, 0, 100, 20, rect,

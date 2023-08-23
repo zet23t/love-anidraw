@@ -9,6 +9,7 @@ ad_stroke_regular_shape_processor.editables = {
     { key = "corners",      type = "number_slider", name = "corners",      min = 3,  max = 16, step = 1,    default = 4 },
     { key = "straightness", type = "number_slider", name = "straightness", min = -1, max = 1,  step = 0.01, default = 0.5 },
     { key = "rotation",     type = "number_slider", name = "rotation",     min = 0,  max = 1,  step = 0.01, default = 0.5 },
+    { key = "debug_corners",     type = "toggle", name = "debug_corners",     default = false },
 }
 ad_stroke_regular_shape_processor.rotation  = 0
 function ad_stroke_regular_shape_processor:new()
@@ -54,7 +55,6 @@ function ad_stroke_regular_shape_processor:process(ad_stroke, input_data, output
         local q, index_q = point_at(dist + step_dist, input_data)
         local pqdist = distance_squared(p[1], p[2], 0, q[1], q[2], 0) ^ .5
         if pqdist < step_dist * 0.95 then
-            local c = { 0, 128, 255 }
             --      print(dist, pqdist)
             local max_dist = 0
             local max_index = index_p
@@ -76,23 +76,26 @@ function ad_stroke_regular_shape_processor:process(ad_stroke, input_data, output
                 np.index = max_index
                 local pc = corners[#corners]
                 if not pc or distance_squared(np[1], np[2], 0, pc[1], pc[2], 0) ^ .5 > step_dist * .5 then
-                    c[1] = 255
                     corners[#corners + 1] = np
                 elseif pc.pqdist > pqdist then
-                    c[2] = 255
                     corners[#corners] = np
+                else
+                    np = nil
                 end
-                ad_stroke:add_debug_draw(function()
-                    love.graphics.setColor(unpack(c))
-                    love.graphics.circle("fill", np[1], np[2], 5)
-                    -- love.graphics.line(p[1], p[2], q[1], q[2])
-                    -- local point = input_data[max_index]
-                    -- love.graphics.line(p[1] * .5 + q[1] * .5, p[2] * .5 + q[2] * .5, point[1], point[2])
-                    -- for i = index_p + 1, index_q do
-                    --     local a, b = input_data[i - 1], input_data[i]
-                    --     love.graphics.line(a[1], a[2], b[1], b[2])
-                    -- end
-                end)
+                if np and self.debug_corners then
+                    ad_stroke:add_debug_draw(function()
+                        love.graphics.setColor(1, 0, 0, 1)
+                        love.graphics.circle("fill", np[1], np[2], 5)
+                        love.graphics.setColor(1, 1, 1, 1)
+                        -- love.graphics.line(p[1], p[2], q[1], q[2])
+                        -- local point = input_data[max_index]
+                        -- love.graphics.line(p[1] * .5 + q[1] * .5, p[2] * .5 + q[2] * .5, point[1], point[2])
+                        -- for i = index_p + 1, index_q do
+                        --     local a, b = input_data[i - 1], input_data[i]
+                        --     love.graphics.line(a[1], a[2], b[1], b[2])
+                        -- end
+                    end)
+                end
             end
         end
         prev_dist = pqdist
