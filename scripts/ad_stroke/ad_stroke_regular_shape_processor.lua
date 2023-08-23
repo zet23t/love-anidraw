@@ -49,7 +49,6 @@ function ad_stroke_regular_shape_processor:process(ad_stroke, input_data, output
     local corners = {
         { index = 1, pqdist = 0, unpack(input_data[1]) }
     }
-    --print">>>"
     for dist = 0, total_length - step_dist, step_dist / 6 do
         local p, index_p = point_at(dist, input_data)
         local q, index_q = point_at(dist + step_dist, input_data)
