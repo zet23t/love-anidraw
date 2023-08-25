@@ -100,7 +100,7 @@ function ad_stroke_regular_shape_processor:process(ad_stroke, input_data, output
         end
         prev_dist = pqdist
     end
-    corners[#corners + 1] = { index = #input_data, pqdist = 0, unpack(input_data[1]) }
+    corners[#corners + 1] = { index = #input_data, pqdist = 0, unpack(input_data[#input_data]) }
 
     local new_output = {}
     --for i=1,#output_data do output_data[i] = nil end

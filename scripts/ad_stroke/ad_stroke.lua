@@ -1,6 +1,9 @@
+local ui_theme  = require "love-ui.ui_theme.ui_theme"
 local debug_draw = {}
 
 local ad_stroke = require "love-util.class" "ad_stroke"
+ad_stroke.icon = ui_theme.icon.pen
+
 function ad_stroke:new()
     return self:create {
         input_data = {};
@@ -47,6 +50,10 @@ function ad_stroke:add(x,y, pressure)
     self.input_data[#self.input_data+1] = { x, y, t = t, pressure = pressure}
     self.finish_time = t
     self:run_processing()
+end
+
+function ad_stroke:tostr()
+    return "Stroke (" .. #self.input_data .. ")"
 end
 
 function ad_stroke:add_debug_draw(fn)

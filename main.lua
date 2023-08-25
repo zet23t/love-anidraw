@@ -321,7 +321,7 @@ local function init(root_rect)
             end
         end
     end)
-    local bottom_right_bar = ui_rect:new(0, 0, 0, 0, bottom_bar, parent_size_matcher_component:new(30, 0, 0, 300)) 
+    local bottom_right_bar = ui_rect:new(0, 0, 0, 0, bottom_bar, parent_size_matcher_component:new(0, 0, 0, 300)) 
     local bottom_left_bar = ui_rect:new(0, 0, 300, 0, bottom_bar, parent_size_matcher_component:new(30, true, 0, 0))
     
     require "anidraw.ui.timeline_panel":initialize(bottom_right_bar)

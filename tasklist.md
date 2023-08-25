@@ -10,12 +10,25 @@
     [x] Straight line
     [ ] Boundary processor
     [ ] Smoothing processor
+    [x] Corner detection + straight lines
 - Color selection
     [x] make pico8 color palette for now
 - generic inspector for modifying components
     [x] add UI
     [x] Selection of created strokes via animation panel
     [x] Configuration of components
+- Grouping objects
+    A group combines strokes into a set. A group should allow adding processors and renderers that are applied to every shape _after_ their own processors and renderers. Overriding colors etc. Layers are also selectable for these groups. UI wise, groups hide their members when folded.
+    Implementation steps:
+    [x] create UI to add a group
+    [x] display groups in ui list
+    [ ] selectable groups
+    [x] groups get draw calls as instructions
+        [ ] fix issue of all instructions drawn simultanously
+    [x] Make instructions assignable to groups
+        [x] groups have instructions list for drawing
+    [x] Integrate groups into drawing workflow
+        [x] current drawing inserts into group
 - Layers
     [ ] Consider how layers should work
         - Setting of the stroke or setting of the renderer?

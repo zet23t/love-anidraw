@@ -1,12 +1,38 @@
 local serialize = require "love-util.serialize"
 local anidraw = require "anidraw.instance"
+local ui_theme= require "love-ui.ui_theme.ui_theme"
 
 anidraw.tools = {}
-
+anidraw.registered_notification_listeners = setmetatable({}, {__mode = "k"})
 anidraw.tools.pen = require "anidraw.tools.pen"
 
 function anidraw:add_point(x, y, pressure)
     anidraw.current_action:add(x, y, pressure)
+end
+
+function anidraw:notify_modified(object)
+    local list = anidraw.registered_notification_listeners[object]
+    if not list then return end
+    for i=1,#list do
+        list[i](object)
+    end
+end
+function anidraw:unsubscribe_from(object, fn)
+    local list = anidraw.registered_notification_listeners[object]
+    if not list then return end
+    for i=#list,1,-1 do
+        if list[i] == fn then
+            table.remove(list, i)
+        end
+    end
+end
+function anidraw:subscribe_to(object, fn)
+    local list = anidraw.registered_notification_listeners[object]
+    if not list then
+        list = {}
+        anidraw.registered_notification_listeners[object] = list
+    end
+    list[#list+1] = fn
 end
 
 function anidraw:save()
@@ -40,6 +66,68 @@ function anidraw:finish()
     if not anidraw.current_action then return end
     self.instructions[#self.instructions + 1] = anidraw.current_action:finish()
     anidraw.current_action = nil
+end
+
+local draw_group = require "love-util.class" "draw_group"
+draw_group.is_group = true
+draw_group.icon = ui_theme.icon.open_folder
+draw_group.mod_count = 0
+function draw_group:new(name)
+    return self:create {
+        name = name or "New Group",
+        instructions = {},
+        finish_time = 0,
+    }
+end
+function draw_group:add_instruction(instruction)
+    if instruction.goup then
+        instruction.group:remove_instruction(instruction)
+    else
+        anidraw:delete_instruction(instruction)
+    end
+    instruction.group = self
+    self.instructions[#self.instructions + 1] = instruction
+    self:flag_modified()
+    self:update_finish_time()
+end
+function draw_group:flag_modified()
+    self.mod_count = self.mod_count + 1
+    anidraw:notify_modified(self)
+end
+function draw_group:tostr()
+    return self.name.." ["..#self.instructions.."]"
+end
+function draw_group:remove_instruction(instruction)
+    for i = 1, #self.instructions do
+        if self.instructions[i] == instruction then
+            table.remove(self.instructions, i)
+            instruction.group = nil
+            self:update_finish_time()
+            self:flag_modified()
+            break
+        end
+    end
+end
+function draw_group:update_finish_time()
+    self.finish_time = 0
+    for i = 1, #self.instructions do
+        local instruction = self.instructions[i]
+        self.finish_time = instruction.finish_time + self.finish_time
+    end
+    anidraw:trigger_selected_objects_changed()
+end
+function draw_group:draw(t)
+    for i = 1, #self.instructions do
+        self.instructions[i]:draw(t)
+    end
+end
+
+function anidraw:create_new_group(name)
+    self:finish()
+    local group = draw_group:new(name)
+    self.instructions[#self.instructions + 1] = group
+    self.selected_objects = { group }
+    self:trigger_selected_objects_changed()
 end
 
 local on_selected_objects_changed_listeners = {};
