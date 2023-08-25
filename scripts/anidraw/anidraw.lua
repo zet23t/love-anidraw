@@ -1,9 +1,9 @@
 local serialize = require "love-util.serialize"
 local anidraw = require "anidraw.instance"
-local ui_theme= require "love-ui.ui_theme.ui_theme"
+local ui_theme = require "love-ui.ui_theme.ui_theme"
 
 anidraw.tools = {}
-anidraw.registered_notification_listeners = setmetatable({}, {__mode = "k"})
+anidraw.registered_notification_listeners = setmetatable({}, { __mode = "k" })
 anidraw.tools.pen = require "anidraw.tools.pen"
 
 function anidraw:add_point(x, y, pressure)
@@ -13,26 +13,28 @@ end
 function anidraw:notify_modified(object)
     local list = anidraw.registered_notification_listeners[object]
     if not list then return end
-    for i=1,#list do
+    for i = 1, #list do
         list[i](object)
     end
 end
+
 function anidraw:unsubscribe_from(object, fn)
     local list = anidraw.registered_notification_listeners[object]
     if not list then return end
-    for i=#list,1,-1 do
+    for i = #list, 1, -1 do
         if list[i] == fn then
             table.remove(list, i)
         end
     end
 end
+
 function anidraw:subscribe_to(object, fn)
     local list = anidraw.registered_notification_listeners[object]
     if not list then
         list = {}
         anidraw.registered_notification_listeners[object] = list
     end
-    list[#list+1] = fn
+    list[#list + 1] = fn
 end
 
 function anidraw:save()
@@ -79,8 +81,11 @@ function draw_group:new(name)
         finish_time = 0,
     }
 end
+
 function draw_group:add_instruction(instruction)
-    if instruction.goup then
+    if instruction.group == self then return end
+
+    if instruction.group then
         instruction.group:remove_instruction(instruction)
     else
         anidraw:delete_instruction(instruction)
@@ -89,14 +94,18 @@ function draw_group:add_instruction(instruction)
     self.instructions[#self.instructions + 1] = instruction
     self:flag_modified()
     self:update_finish_time()
+    anidraw:clear_canvas()
 end
+
 function draw_group:flag_modified()
     self.mod_count = self.mod_count + 1
     anidraw:notify_modified(self)
 end
+
 function draw_group:tostr()
-    return self.name.." ["..#self.instructions.."]"
+    return self.name .. " [" .. #self.instructions .. "]"
 end
+
 function draw_group:remove_instruction(instruction)
     for i = 1, #self.instructions do
         if self.instructions[i] == instruction then
@@ -108,6 +117,7 @@ function draw_group:remove_instruction(instruction)
         end
     end
 end
+
 function draw_group:update_finish_time()
     self.finish_time = 0
     for i = 1, #self.instructions do
@@ -116,10 +126,101 @@ function draw_group:update_finish_time()
     end
     anidraw:trigger_selected_objects_changed()
 end
-function draw_group:draw(t)
-    for i = 1, #self.instructions do
-        self.instructions[i]:draw(t)
+
+function draw_group:draw(t, draw_state, draw_temporary)
+    if #self.instructions > 0 then
+        local start_time = self.instructions[1].start_time
+        local remaining = t
+        for i = 1, #self.instructions do
+            local instruction = self.instructions[i]
+            if remaining < instruction.finish_time then
+                if draw_temporary then
+                    instruction:draw(remaining, draw_state, draw_temporary)
+                end
+                return false
+            elseif not draw_temporary then
+                if not draw_state[instruction] then
+                    instruction:draw(remaining, draw_state, draw_temporary)
+                    draw_state[instruction] = true
+                end
+            end
+            remaining = remaining - (instruction.finish_time)
+        end
     end
+    -- for i = 1, #self.instructions do
+    --     self.instructions[i]:draw(t)
+    -- end
+    return true
+end
+
+local function prepare_insertion(self, instruction)
+    self:add_instruction(instruction)
+    for i = 1, #self.instructions do
+        if self.instructions[i] == instruction then
+            table.remove(self.instructions, i)
+            break
+        end
+    end
+end
+
+function draw_group:insert_before(instruction, before)
+    prepare_insertion(self, instruction)
+    for i = 1, #self.instructions do
+        if self.instructions[i] == before then
+            table.insert(self.instructions, i, instruction)
+            break
+        end
+    end
+    self:flag_modified()
+    anidraw:clear_canvas()
+end
+
+function draw_group:insert_after(instruction, after)
+    prepare_insertion(self, instruction)
+    for i = 1, #self.instructions do
+        if self.instructions[i] == after then
+            table.insert(self.instructions, i + 1, instruction)
+            break
+        end
+    end
+    self:flag_modified()
+    anidraw:clear_canvas()
+
+end
+
+local function prepare_insertion(self, instruction)
+    if instruction.group then
+        instruction.group:remove_instruction(instruction)
+    end
+    for i = 1, #self.instructions do
+        if self.instructions[i] == instruction then
+            table.remove(self.instructions, i)
+            break
+        end
+    end
+end
+function anidraw:insert_before(instruction, before)
+    prepare_insertion(self, instruction)
+
+    for i = 1, #self.instructions do
+        if self.instructions[i] == before then
+            table.insert(self.instructions, i, instruction)
+            break
+        end
+    end
+    anidraw:clear_canvas()
+end
+
+function anidraw:insert_after(instruction, after)
+    prepare_insertion(self, instruction)
+
+    for i = 1, #self.instructions do
+        if self.instructions[i] == after then
+            table.insert(self.instructions, i + 1, instruction)
+            break
+        end
+    end
+    anidraw:clear_canvas()
 end
 
 function anidraw:create_new_group(name)
@@ -153,6 +254,9 @@ function anidraw:set_tool(tool)
 end
 
 function anidraw:delete_instruction(instruction)
+    if instruction.group then
+        instruction.group:remove_instruction(instruction)
+    end
     for i = 1, #self.instructions do
         if self.instructions[i] == instruction then
             table.remove(self.instructions, i)
@@ -199,14 +303,14 @@ function anidraw:draw(draw_state, draw_temporary)
         for i = 1, #self.instructions do
             local instruction = self.instructions[i]
             if remaining < instruction.finish_time then
-                if draw_temporary then
-                    instruction:draw(remaining)
+                if draw_temporary or instruction.is_group then
+                    instruction:draw(remaining, draw_state, draw_temporary)
                 end
                 break
             else
-                if i > (draw_state or 0) then
-                    draw_state = i
-                    instruction:draw(remaining)
+                if not draw_state[instruction] and not draw_temporary then
+                    instruction:draw(remaining, draw_state, draw_temporary)
+                    draw_state[instruction] = true
                 end
             end
             remaining = remaining - (instruction.finish_time)
@@ -215,7 +319,6 @@ function anidraw:draw(draw_state, draw_temporary)
     if self.current_action and draw_temporary then
         self.current_action:draw(t)
     end
-    return draw_state
 end
 
 return anidraw

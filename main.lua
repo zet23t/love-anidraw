@@ -584,7 +584,8 @@ local function init(root_rect)
         if not self.canvas_draw_state then
             love.graphics.clear(1, 1, 1, 0)
         end
-        self.canvas_draw_state = anidraw:draw(self.canvas_draw_state, false)
+        self.canvas_draw_state = self.canvas_draw_state or {}
+        anidraw:draw(self.canvas_draw_state, false)
         love.graphics.setCanvas()
 
         local x, y = rect:to_world()
