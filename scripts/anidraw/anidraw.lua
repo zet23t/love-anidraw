@@ -138,10 +138,12 @@ function draw_group:draw(t, draw_state, draw_temporary)
                     instruction:draw(remaining, draw_state, draw_temporary)
                 end
                 return false
-            elseif not draw_temporary then
+            else --if not draw_temporary then
                 if not draw_state[instruction] then
-                    instruction:draw(remaining, draw_state, draw_temporary)
-                    draw_state[instruction] = true
+                    local is_done = instruction:draw(remaining, draw_state, draw_temporary)
+                    if not draw_temporary then
+                        draw_state[instruction] = is_done or is_done == nil
+                    end
                 end
             end
             remaining = remaining - (instruction.finish_time)
@@ -308,9 +310,11 @@ function anidraw:draw(draw_state, draw_temporary)
                 end
                 break
             else
-                if not draw_state[instruction] and not draw_temporary then
-                    instruction:draw(remaining, draw_state, draw_temporary)
-                    draw_state[instruction] = true
+                if not draw_state[instruction] then
+                    local is_done = instruction:draw(remaining, draw_state, draw_temporary)
+                    if not draw_temporary then
+                        draw_state[instruction] = is_done or is_done == nil
+                    end
                 end
             end
             remaining = remaining - (instruction.finish_time)
