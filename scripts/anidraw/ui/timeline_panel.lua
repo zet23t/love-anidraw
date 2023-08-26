@@ -42,7 +42,7 @@ function timeline_panel:initialize(bottom_bar)
                 return
             end
             local instruction_rect = ui_rect:new(0, 0, rect.w, 20, rect)
-            local fill = instruction_rect:add_component(rectfill_component:new(7, 0))
+            local fill = instruction_rect:add_component(rectfill_component:new(7))
             instruction_rect.mapped_instruction = instruction
             instruction_rect.mapped_instruction_mod_count = instruction.mod_count
             if instruction.icon then
@@ -69,7 +69,8 @@ function timeline_panel:initialize(bottom_bar)
                         return
                     end
                     local hits = {}
-                    rect:collect_hits(mx, my, hits)
+                    local x,y = rect.parent:to_local(rect:to_world(mx, my))
+                    rect:collect_hits(x, y, hits)
                     for i=1,#hits do
                         if hits[i].mapped_instruction and hits[i]~=rect then
                             fill:set_fill(7)
@@ -95,6 +96,22 @@ function timeline_panel:initialize(bottom_bar)
                 anidraw:delete_instruction(instruction)
                 anidraw:clear_canvas()
             end)
+            local visibility_button = ui_rect:new(0, 0, 20, 20, instruction_rect, weighted_position_component:new(1, 0, 0, 20))
+            visibility_button.ignore_layouting = true
+            ui_theme:decorate_button_skin(visibility_button, nil, instruction.hidden and ui_theme.icon.eye_closed or ui_theme.icon.eye_open, function()
+                instruction.hidden = not instruction.hidden
+                visibility_button:trigger_on_components("set_sprite", instruction.hidden and ui_theme.icon.eye_closed or ui_theme.icon.eye_open)
+                anidraw:clear_canvas()
+            end)
+            if instruction.is_group then
+                -- foldable groups
+                local fold_button = ui_rect:new(0, 0, 20, 20, instruction_rect, weighted_position_component:new(1, 0, 0, 40))
+                fold_button.ignore_layouting = true
+                ui_theme:decorate_button_skin(fold_button, nil, instruction.folded and ui_theme.icon.play or ui_theme.icon.triangle_down, function()
+                    instruction.folded = not instruction.folded
+                    fold_button:trigger_on_components("set_sprite", instruction.folded and ui_theme.icon.play or ui_theme.icon.triangle_down)
+                end)
+            end
             instruction_rect:add_component({
                 was_pressed_down = function(cmp, rect, mx, my)
                     if not rect:is_top_hit() then
@@ -188,22 +205,21 @@ function timeline_panel:initialize(bottom_bar)
         update = function(cmp, rect)
             local map = {}
             local function update(map, owner, owner_rect)
-               
-
                 for i = 1, #owner.instructions do
                     local instruction = owner.instructions[i]
                     cmp:map_timeline(owner_rect, instruction)
-                    if instruction.is_group then
+                    if instruction.is_group and not instruction.folded then
                         update(map, instruction, cmp.timeline_map[instruction])
                     end
                     map[instruction] = true
+                
                 end
             end
             local function sort_lists(owner,owner_rect)
                 local index_map = {}
                 for i = 1, #owner.instructions do
                     local instruction = owner.instructions[i]
-                    if instruction.is_group then
+                    if instruction.is_group and not instruction.folded then
                         sort_lists(instruction, cmp.timeline_map[instruction])
                     end
                     

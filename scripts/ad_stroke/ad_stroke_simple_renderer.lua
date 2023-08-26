@@ -35,7 +35,7 @@ local function draw_strokes(output_data, t, min_size, thickness)
             local rad1 = (a.pressure or .5) * thickness + min_size
             local rad2 = (b.pressure or .5) * thickness + min_size
             local n = 0
-            for d = 0, dist, 1 do
+            for d = 0, dist, math.max(1,math.min(rad1,rad2)/2) do
                 local rad = rad1 + (rad2 - rad1) * d / dist
                 if rad > 0 then
                     love.graphics.circle("line", x1 + nx * d, y1 + ny * d, rad)

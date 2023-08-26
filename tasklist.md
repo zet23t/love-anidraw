@@ -27,11 +27,17 @@
     [ ] selectable groups
         [ ] Animate options for groups
         [ ] Pre/Post-processors / Pre/Post-renderers
-    [ ] foldable groups
+    [x] foldable groups
+    [x] visibility toggle
+    [ ] Optimize sorting and drawing of list
+        - Create a list of all instructions
+        - Select those visible
+        - update rects (delete invisible, create newly visible)
+        - doesn't need sorting
     [x] groups get draw calls as instructions
         [x] fix issue of all instructions drawn simultanously
     [x] Make instructions assignable to groups
-        [ ] reorderable lists
+        [x] reorderable lists
     [x] groups have instructions list for drawing
     [ ] Integrate groups into drawing workflow
         [ ] current drawing inserts into group
@@ -51,3 +57,4 @@
     [?] create mesh instead of rendering points
 - Performance improvements
     [x] draw on canvas, refresh only on change
+    [ ] Optimize line renderer

@@ -90,6 +90,7 @@ local function init(root_rect)
     }
 
     function anidraw:clear_canvas()
+        -- print(debug.traceback("clear canvas"))
         paint_component.canvas_draw_state = nil
     end
 
@@ -599,6 +600,7 @@ local function init(root_rect)
         love.graphics.rectangle("line", 0, 0, cw, ch)
         love.graphics.setColor(1, 1, 1, 1)
         love.graphics.draw(self.canvas)
+        self.canvas_draw_state = self.canvas_draw_state or {}
         anidraw:draw(self.canvas_draw_state, true)
         love.graphics.pop()
 
