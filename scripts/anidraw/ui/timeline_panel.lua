@@ -212,7 +212,6 @@ function timeline_panel:initialize(bottom_bar)
                         update(map, instruction, cmp.timeline_map[instruction])
                     end
                     map[instruction] = true
-                
                 end
             end
             local function sort_lists(owner,owner_rect)

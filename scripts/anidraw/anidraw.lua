@@ -1,6 +1,8 @@
 local serialize = require "love-util.serialize"
+local binary_serialize = require "love-util.binary_serialize"
 local anidraw = require "anidraw.instance"
 local ui_theme = require "love-ui.ui_theme.ui_theme"
+local bench = require "love-util.bench"
 
 anidraw.tools = {}
 anidraw.registered_notification_listeners = setmetatable({}, { __mode = "k" })
@@ -38,26 +40,48 @@ function anidraw:subscribe_to(object, fn)
 end
 
 function anidraw:save()
-    _G._saved_anidraw = serialize:serialize_to_string({
+    local done = bench:mark("bin-save")
+    local data = table.concat(binary_serialize:serialize{
         instructions = self.instructions,
-        selected_objects = self.selected_objects
+        selected_objects = self.selected_objects,
     })
-    local fp = assert(io.open("tmp.bin", "wb"))
-    fp:write(_G._saved_anidraw)
+    done()
+    _G._saved_anidraw_bin = data
+
+    -- done = bench:mark("lua-save")
+    -- local lua_data = serialize:serialize_to_string({
+    --     instructions = self.instructions,
+    --     selected_objects = self.selected_objects
+    -- })
+    -- done()
+    -- bench:flush_info()
+    -- print("Saved bin bytes: " .. #data .. " lua bytes: "..#_G._saved_anidraw)
+
+    -- local fp = assert(io.open("tmp.bin", "wb"))
+    -- fp:write(_G._saved_anidraw)
+    -- fp:close()
+
+    local fp = assert(io.open("tmp2.bin", "wb"))
+    fp:write(data)
     fp:close()
 end
 
 function anidraw:load()
-    if _G._saved_anidraw then
-        local new_anidraw = serialize:deserialize_from_string(_G._saved_anidraw)
+    if _G._saved_anidraw_bin then
+        local done = bench:mark("bin-load")
+
+        local new_anidraw = binary_serialize:deserialize(_G._saved_anidraw_bin)
         for k, v in pairs(new_anidraw) do
             self[k] = v
         end
+        done()
+        bench:flush_info()
     else
-        local fp = assert(io.open("tmp.bin", "rb"))
+        local fp = assert(io.open("tmp2.bin", "rb"))
         local data = fp:read("*a")
         fp:close()
-        local new_anidraw = serialize:deserialize_from_string(data)
+        local new_anidraw = binary_serialize:deserialize(data)
+        _G._saved_anidraw_bin = data
         for k, v in pairs(new_anidraw) do
             self[k] = v
         end
