@@ -10,6 +10,7 @@ local rectfill_component            = require "love-ui.components.generic.rectfi
 local ui_theme                      = require "love-ui.ui_theme.ui_theme"
 local menu_widget                   = require "love-ui.widget.menu_widget"
 local sprite_component              = require "love-ui.components.generic.sprite_component"
+local textfield_component           = require "love-ui.components.generic.textfield_component"
 
 local anidraw                       = require "anidraw"
 
@@ -48,24 +49,36 @@ function timeline_panel:initialize(bottom_bar)
             if instruction.icon then
                 instruction_rect:add_component(sprite_component:new(instruction.icon, 4, 2))
             end
-            local title = instruction_rect:add_component(text_component:new(instruction:tostr(), pico8_colors.black, 4, 0,
-                0, 23, 0, 0))
+
+            local title_rect = ui_rect:new(25, 0, instruction_rect.w - 90, 22, instruction_rect)
+            --title_rect:add_component(rectfill_component:new(4))
+            title_rect.ignore_layouting = true
+            local title = title_rect:add_component(textfield_component:new(instruction.name or instruction:tostr(), pico8_colors.black, 4, 0,
+                0, 0, 0, 0))
+            function title:on_text_updated()
+                instruction.name = self.text
+                anidraw:notify_modified(instruction)
+            end
             local function update()
-                title:set_text(instruction:tostr())
+                fill.is_selected = anidraw:is_selected(instruction)
+                fill:set_fill(fill.is_selected and pico8_colors.blue or pico8_colors.white)
+                title:set_text(instruction.name or instruction:tostr())
                 if not instruction.is_group then return end
-                
             end
             anidraw:subscribe_to(instruction, update)
+            anidraw:add_object_selection_changed_listener(update)
             instruction_rect:add_component {
                 on_set_parent = function()
                     anidraw:subscribe_to(instruction, update)
+                    anidraw:add_object_selection_changed_listener(update)
                 end,
                 on_removed = function()
                     anidraw:unsubscribe_from(instruction)
+                    anidraw:remove_object_selection_changed_listener(update)
                 end,
                 is_mouse_over = function(cmp, rect, mx, my)
                     if rect:is_top_hit() then
-                        fill:set_fill(15)
+                        fill:set_fill(fill.is_selected and pico8_colors.blue or 15)
                         return
                     end
                     local hits = {}
@@ -73,14 +86,14 @@ function timeline_panel:initialize(bottom_bar)
                     rect:collect_hits(x, y, hits)
                     for i=1,#hits do
                         if hits[i].mapped_instruction and hits[i]~=rect then
-                            fill:set_fill(7)
+                            fill:set_fill(fill.is_selected and pico8_colors.blue or 7)
                             return
                         end
                     end
-                    fill:set_fill(15)
+                    fill:set_fill(fill.is_selected and pico8_colors.blue or 15)
                 end,
                 mouse_exit = function()
-                    fill:set_fill(7)
+                    fill:set_fill(fill.is_selected and pico8_colors.blue or 7)
                 end
             }
             if instruction.is_group then

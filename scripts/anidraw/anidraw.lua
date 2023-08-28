@@ -90,7 +90,13 @@ end
 
 function anidraw:finish()
     if not anidraw.current_action then return end
-    self.instructions[#self.instructions + 1] = anidraw.current_action:finish()
+    local obj = anidraw.current_action:finish()
+    self.instructions[#self.instructions + 1] = obj
+    local so = self.selected_objects[1]
+    if so and so.is_group then
+        so:add_instruction(obj)
+    end
+    
     anidraw.current_action = nil
 end
 
@@ -279,8 +285,25 @@ function anidraw:select_object(object)
     self:trigger_selected_objects_changed()
 end
 
+function anidraw:is_selected(object)
+    for i = 1, #self.selected_objects do
+        if self.selected_objects[i] == object then
+            return true
+        end
+    end
+    return false
+end
+
 function anidraw:add_object_selection_changed_listener(listener)
     on_selected_objects_changed_listeners[#on_selected_objects_changed_listeners + 1] = listener
+end
+
+function anidraw:remove_object_selection_changed_listener(listener)
+    for i = #on_selected_objects_changed_listeners, 1, -1 do
+        if on_selected_objects_changed_listeners[i] == listener then
+            table.remove(on_selected_objects_changed_listeners, i)
+        end
+    end
 end
 
 function anidraw:set_tool(tool)

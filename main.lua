@@ -13,7 +13,7 @@ local rectfill_component            = require "love-ui.components.generic.rectfi
 local distance_squared              = require "love-math.geom.3d.distance_squared"
 local ui_theme                      = require "love-ui.ui_theme.ui_theme"
 local menu_widget                   = require "love-ui.widget.menu_widget"
-
+local textfield_component           = require "love-ui.components.generic.textfield_component"
 local anidraw                       = require "anidraw"
 
 local processors = {
@@ -290,8 +290,12 @@ local function init(root_rect)
                 object_inspector_scroll_area.scroll_content)
             object_rect:add_component(rectfill_component:new(6))
             object_rect:add_component(linear_layouter_component:new(2, false, 0, 0, 0, 0, 2))
-            ui_rect:new(0, 0, object_rect.w, 20, object_rect, rectfill_component:new(9),
-                text_component:new(object.name or object:tostr(), 1))
+            local tf = textfield_component:new(object.name or object:tostr(), 1, 0,0,0,0,0)
+            ui_rect:new(0, 0, object_rect.w, 20, object_rect, rectfill_component:new(9), tf)
+            function tf:on_text_updated()
+                object.name = self.text
+                anidraw:notify_modified(object)
+            end
             if object.processing_components then
                 ui_rect:new(0, 0, object_rect.w - 10, 2, object_rect, rectfill_component:new(0))
                 ui_rect:new(0, 0, object_rect.w, 20, object_rect, rectfill_component:new(10),
