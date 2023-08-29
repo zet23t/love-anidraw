@@ -4,8 +4,14 @@
     [ ] Selection
     [ ] Erasing
     [ ] Color picker
-    [ ]
--
+    [ ] Width manipulator
+    [ ] Deformator
+- Loading / saving to file
+    [x] Dialog with file selector
+    [ ] File view filtering
+    [ ] save vs save as
+    [ ] recent files
+    [ ] Populating the "file" menubar options
 - Processors
     [x] Straight line
     [ ] Boundary processor
@@ -18,7 +24,8 @@
     [x] Selection of created strokes via animation panel
     [x] Configuration of components
 - Basic functionality
-    [ ] Enabling / disabling drawing elements
+    [x] Enabling / disabling drawing elements
+
 - Grouping objects
     A group combines strokes into a set. A group should allow adding processors and renderers that are applied to every shape _after_ their own processors and renderers. Overriding colors etc. Layers are also selectable for these groups. UI wise, groups hide their members when folded.
     Implementation steps:

@@ -16,17 +16,17 @@ local menu_widget                   = require "love-ui.widget.menu_widget"
 local textfield_component           = require "love-ui.components.generic.textfield_component"
 local anidraw                       = require "anidraw"
 
-local processors = {
-    "ad_stroke_smoothed_line_processor";
-    "ad_stroke_straight_line_processor";
-    "ad_stroke_regular_shape_processor";
-    "ad_stroke_triangulator_renderer";
+local processors                    = {
+    "ad_stroke_smoothed_line_processor",
+    "ad_stroke_straight_line_processor",
+    "ad_stroke_regular_shape_processor",
+    "ad_stroke_triangulator_renderer",
 }
 
 do
     -- need the classes to be loaded so deserialization can find them
     for i = 1, #processors do
-        require("ad_stroke."..processors[i])
+        require("ad_stroke." .. processors[i])
     end
 end
 
@@ -106,7 +106,7 @@ local function init(root_rect)
     local left_bar = ui_rect:new(0, 0, 22, 22, client_space,
         parent_size_matcher_component:new(top_bar_rect.h, true, bottom_bar.h, 0),
         rectfill_component:new(5))
-    
+
     local canvas_rect = ui_rect:new(20, 20, 500, 500, root_rect,
         parent_size_matcher_component:new(19 + top_bar_rect.h + 2, right_bar_rect.w + 2, bottom_bar.h + 2, left_bar.w + 2))
     canvas_rect:add_component(rectfill_component:new(6))
@@ -126,10 +126,34 @@ local function init(root_rect)
     left_bar:set_selected(pen_rect)
 
     decorate_as_cmd_bar(top_bar_rect)
-    top_bar_rect:cmd(ui_theme.icon.save_disk, function() anidraw:save() end)
+
+    local file_dialog_widget = require "love-ui.widget.file_dialog_widget"
+    top_bar_rect:cmd(ui_theme.icon.save_disk, function()
+        --anidraw:save()
+        local fd = file_dialog_widget:new(ui_theme, "Save to file", "Save")
+        if anidraw.path then
+            fd:set_path(anidraw.path)
+        end
+        fd:show(root_rect, function(self, path)
+            if path then
+                if not path:match "%.ad" then
+                    path = path..".ad"
+                end
+                anidraw:save(path)
+            end
+        end)
+    end)
     top_bar_rect:cmd(ui_theme.icon.open_folder, function()
-        anidraw:load()
-        anidraw:clear_canvas()
+        local fd = file_dialog_widget:new(ui_theme, "Load from file", "Load")
+        if anidraw.path then
+            fd:set_path(anidraw.path)
+        end
+        fd:show(root_rect, function(self, path)
+            if path then
+                anidraw:load(path)
+                anidraw:clear_canvas()
+            end
+        end)
     end)
     top_bar_rect:cmd_space()
     top_bar_rect:cmd(ui_theme.icon.undo, function() end)
@@ -199,13 +223,13 @@ local function init(root_rect)
         local title = ui_rect:new(0, 0, parent.w, 20, parent, rectfill_component:new(15),
             text_component:new(component.name or (component.tostr and component:tostr()) or "<???>", 1, 0, 0, 0, 0, 0))
         ui_theme:decorate_button_skin(ui_rect:new(title.w - 20, 0, 20, 20, title), nil,
-            ui_theme.icon.close_x,function()
+            ui_theme.icon.close_x, function()
                 table.remove(list, list_index)
                 owner:run_processing()
                 anidraw:trigger_selected_objects_changed()
                 anidraw:clear_canvas()
             end)
-        
+
         if list_index < #list then
             ui_theme:decorate_button_skin(ui_rect:new(title.w - 40, 0, 20, 20, title), nil,
                 ui_theme.icon.tiny_triangle_down,
@@ -290,12 +314,13 @@ local function init(root_rect)
                 object_inspector_scroll_area.scroll_content)
             object_rect:add_component(rectfill_component:new(6))
             object_rect:add_component(linear_layouter_component:new(2, false, 0, 0, 0, 0, 2))
-            local tf = textfield_component:new(object.name or object:tostr(), 1, 0,0,0,0,0)
+            local tf = textfield_component:new(object.name or object:tostr(), 1, 0, 0, 0, 0, 0)
             ui_rect:new(0, 0, object_rect.w, 20, object_rect, rectfill_component:new(9), tf)
             function tf:on_text_updated()
                 object.name = self.text
                 anidraw:notify_modified(object)
             end
+
             if object.processing_components then
                 ui_rect:new(0, 0, object_rect.w - 10, 2, object_rect, rectfill_component:new(0))
                 ui_rect:new(0, 0, object_rect.w, 20, object_rect, rectfill_component:new(10),
@@ -326,14 +351,14 @@ local function init(root_rect)
             end
         end
     end)
-    local bottom_right_bar = ui_rect:new(0, 0, 0, 0, bottom_bar, parent_size_matcher_component:new(0, 0, 0, 300)) 
+    local bottom_right_bar = ui_rect:new(0, 0, 0, 0, bottom_bar, parent_size_matcher_component:new(0, 0, 0, 300))
     local bottom_left_bar = ui_rect:new(0, 0, 300, 0, bottom_bar, parent_size_matcher_component:new(30, true, 0, 0))
-    
+
     require "anidraw.ui.timeline_panel":initialize(bottom_right_bar)
     require "anidraw.ui.layer_panel":initialize(bottom_left_bar)
 
 
-    
+
 
     local function replay(speed)
         anidraw:clear_canvas()

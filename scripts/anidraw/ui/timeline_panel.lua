@@ -50,11 +50,20 @@ function timeline_panel:initialize(bottom_bar)
                 instruction_rect:add_component(sprite_component:new(instruction.icon, 4, 2))
             end
 
-            local title_rect = ui_rect:new(25, 0, instruction_rect.w - 90, 22, instruction_rect)
+            local title_rect = ui_rect:new(0, 0, instruction_rect.w - 65, 22, instruction_rect)
             --title_rect:add_component(rectfill_component:new(4))
             title_rect.ignore_layouting = true
-            local title = title_rect:add_component(textfield_component:new(instruction.name or instruction:tostr(), pico8_colors.black, 4, 0,
-                0, 0, 0, 0))
+            title_rect:add_component {
+                mouse_exit = function()
+                    anidraw:highlight_instruction_remove(instruction)
+                end,
+                mouse_enter = function()
+                    anidraw:highlight_instruction_add(instruction)
+                end,
+            }
+            local title = title_rect:add_component(
+                textfield_component:new(instruction.name or instruction:tostr(), pico8_colors.black, 4, 0,
+                0, 25, 0, 0))
             function title:on_text_updated()
                 instruction.name = self.text
                 anidraw:notify_modified(instruction)
@@ -100,7 +109,7 @@ function timeline_panel:initialize(bottom_bar)
                 instruction_rect:add_component(linear_layouter_component:new(2, false, 20, 0, 2, 20, -1)
                 :set_minor_axis_expand_children_enabled(true))
             end
-            ui_theme:decorate_on_click(instruction_rect, function()
+            ui_theme:decorate_on_click(title_rect, function()
                 anidraw:select_object(instruction)
             end)
             local delete_button = ui_rect:new(0, 0, 20, 20, instruction_rect, weighted_position_component:new(1, 0))

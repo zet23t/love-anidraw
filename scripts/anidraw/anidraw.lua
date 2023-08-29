@@ -1,12 +1,13 @@
 local serialize = require "love-util.serialize"
 local binary_serialize = require "love-util.binary_serialize"
 local anidraw = require "anidraw.instance"
-local ui_theme = require "love-ui.ui_theme.ui_theme"
 local bench = require "love-util.bench"
+local draw_group = require "anidraw.draw_group"
 
 anidraw.tools = {}
 anidraw.registered_notification_listeners = setmetatable({}, { __mode = "k" })
 anidraw.tools.pen = require "anidraw.tools.pen"
+anidraw.highlighted_instructions = {}
 
 function anidraw:add_point(x, y, pressure)
     anidraw.current_action:add(x, y, pressure)
@@ -39,9 +40,10 @@ function anidraw:subscribe_to(object, fn)
     list[#list + 1] = fn
 end
 
-function anidraw:save()
+function anidraw:save(path)
+    self.file_path = path
     local done = bench:mark("bin-save")
-    local data = table.concat(binary_serialize:serialize{
+    local data = table.concat(binary_serialize:serialize {
         instructions = self.instructions,
         selected_objects = self.selected_objects,
     })
@@ -61,30 +63,27 @@ function anidraw:save()
     -- fp:write(_G._saved_anidraw)
     -- fp:close()
 
-    local fp = assert(io.open("tmp2.bin", "wb"))
+    local fp = assert(io.open(path, "wb"))
     fp:write(data)
     fp:close()
 end
 
-function anidraw:load()
-    if _G._saved_anidraw_bin then
-        local done = bench:mark("bin-load")
+function anidraw:load(path)
+    self.file_path = path or _G._saved_anidraw_path or "tmp2.bin"
+    
+    local fp = assert(io.open(self.file_path, "rb"))
+    local data = fp:read("*a")
+    fp:close()
 
-        local new_anidraw = binary_serialize:deserialize(_G._saved_anidraw_bin)
-        for k, v in pairs(new_anidraw) do
-            self[k] = v
-        end
-        done()
-        bench:flush_info()
-    else
-        local fp = assert(io.open("tmp2.bin", "rb"))
-        local data = fp:read("*a")
-        fp:close()
+    local suc,err = pcall(function() 
         local new_anidraw = binary_serialize:deserialize(data)
         _G._saved_anidraw_bin = data
         for k, v in pairs(new_anidraw) do
             self[k] = v
         end
+    end)
+    if not suc then
+        print(err)
     end
 end
 
@@ -96,137 +95,11 @@ function anidraw:finish()
     if so and so.is_group then
         so:add_instruction(obj)
     end
-    
+
     anidraw.current_action = nil
 end
 
-local draw_group = require "love-util.class" "draw_group"
-draw_group.is_group = true
-draw_group.icon = ui_theme.icon.open_folder
-draw_group.mod_count = 0
-function draw_group:new(name)
-    return self:create {
-        name = name or "New Group",
-        instructions = {},
-        finish_time = 0,
-    }
-end
 
-function draw_group:add_instruction(instruction)
-    if instruction.group == self then return end
-
-    if instruction.group then
-        instruction.group:remove_instruction(instruction)
-    else
-        anidraw:delete_instruction(instruction)
-    end
-    instruction.group = self
-    self.instructions[#self.instructions + 1] = instruction
-    self:flag_modified()
-    self:update_finish_time()
-    anidraw:clear_canvas()
-end
-
-function draw_group:flag_modified()
-    self.mod_count = self.mod_count + 1
-    anidraw:notify_modified(self)
-end
-
-function draw_group:tostr()
-    return self.name .. " [" .. #self.instructions .. "]"
-end
-
-function draw_group:remove_instruction(instruction)
-    for i = 1, #self.instructions do
-        if self.instructions[i] == instruction then
-            table.remove(self.instructions, i)
-            instruction.group = nil
-            self:update_finish_time()
-            self:flag_modified()
-            break
-        end
-    end
-end
-
-function draw_group:update_finish_time()
-    local prev_time = self.finish_time
-    self.finish_time = 0
-    for i = 1, #self.instructions do
-        local instruction = self.instructions[i]
-        if not instruction.hidden then
-            self.finish_time = instruction.finish_time + self.finish_time
-        end
-    end
-    if self.finish_time ~= prev_time then
-        anidraw:trigger_selected_objects_changed()
-    end
-end
-
-function draw_group:draw(t, draw_state, draw_temporary)
-    self:update_finish_time()
-    if #self.instructions > 0 then
-        local start_time = self.instructions[1].start_time
-        local remaining = t
-        for i = 1, #self.instructions do
-            local instruction = self.instructions[i]
-            if not instruction.hidden then
-                if remaining < instruction.finish_time then
-                    if draw_temporary then
-                        instruction:draw(remaining, draw_state, draw_temporary)
-                    end
-                    return false
-                else --if not draw_temporary then
-                    if not draw_state[instruction] then
-                        local is_done = instruction:draw(remaining, draw_state, draw_temporary)
-                        if not draw_temporary then
-                            draw_state[instruction] = is_done or is_done == nil
-                        end
-                    end
-                end
-                remaining = remaining - (instruction.finish_time)
-            end
-        end
-    end
-    -- for i = 1, #self.instructions do
-    --     self.instructions[i]:draw(t)
-    -- end
-    return true
-end
-
-local function prepare_insertion(self, instruction)
-    self:add_instruction(instruction)
-    for i = 1, #self.instructions do
-        if self.instructions[i] == instruction then
-            table.remove(self.instructions, i)
-            break
-        end
-    end
-end
-
-function draw_group:insert_before(instruction, before)
-    prepare_insertion(self, instruction)
-    for i = 1, #self.instructions do
-        if self.instructions[i] == before then
-            table.insert(self.instructions, i, instruction)
-            break
-        end
-    end
-    self:flag_modified()
-    anidraw:clear_canvas()
-end
-
-function draw_group:insert_after(instruction, after)
-    prepare_insertion(self, instruction)
-    for i = 1, #self.instructions do
-        if self.instructions[i] == after then
-            table.insert(self.instructions, i + 1, instruction)
-            break
-        end
-    end
-    self:flag_modified()
-    anidraw:clear_canvas()
-
-end
 
 local function prepare_insertion(self, instruction)
     if instruction.group then
@@ -277,6 +150,24 @@ local on_selected_objects_changed_listeners = {};
 function anidraw:trigger_selected_objects_changed()
     for i = 1, #on_selected_objects_changed_listeners do
         on_selected_objects_changed_listeners[i](self.selected_objects)
+    end
+end
+
+function anidraw:highlight_instruction_remove(instruction)
+    if not self.highlighted_instructions[instruction] then return end
+    for i = 1, #self.highlighted_instructions do
+        if self.highlighted_instructions[i] == instruction then
+            table.remove(self.highlighted_instructions, i)
+            self.highlighted_instructions[instruction] = nil
+            return
+        end
+    end
+end
+
+function anidraw:highlight_instruction_add(instruction)
+    if not self.highlighted_instructions[instruction] then
+        self.highlighted_instructions[instruction] = true
+        self.highlighted_instructions[#self.highlighted_instructions + 1] = instruction
     end
 end
 
@@ -336,6 +227,7 @@ end
 
 function anidraw:clear()
     self.instructions = {}
+    self.highlighted_instructions = {}
 end
 
 function anidraw:set_color(rgba)
@@ -361,7 +253,6 @@ function anidraw:draw(draw_state, draw_temporary)
         for i = 1, #self.instructions do
             local instruction = self.instructions[i]
             if not instruction.hidden then
-
                 if remaining < instruction.finish_time then
                     if draw_temporary or instruction.is_group then
                         instruction:draw(remaining, draw_state, draw_temporary)
@@ -381,6 +272,15 @@ function anidraw:draw(draw_state, draw_temporary)
     end
     if self.current_action and draw_temporary then
         self.current_action:draw(t)
+    end
+
+    if draw_temporary then
+        for i = 1, #self.highlighted_instructions do
+            local instruction = self.highlighted_instructions[i]
+            if instruction.draw_highlight and not instruction.hidden then
+                instruction:draw_highlight()
+            end
+        end
     end
 end
 
