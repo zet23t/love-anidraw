@@ -1,9 +1,18 @@
 local ui_theme = require "love-ui.ui_theme.ui_theme"
 local draw_group = require "love-util.class" "draw_group"
 local anidraw = require "anidraw.instance"
+local editables = require "anidraw.ui.editables"
 draw_group.is_group = true
 draw_group.icon = ui_theme.icon.open_folder
 draw_group.mod_count = 0
+draw_group.editables = editables:new()
+    :toggle("hidden", "hidden", false)
+    :toggle("locked", "locked", false)
+    :options("animation_type", "animation type", {
+        {"serial", "serial"},
+        {"parallel", "parallel"},
+    })
+
 function draw_group:new(name)
     return self:create {
         name = name or "New Group",

@@ -26,23 +26,25 @@ function object_inspector:initialize(right_bar_rect)
     local function add_component_inspector(parent, component, owner, list, list_index)
         local title = ui_rect:new(0, 0, parent.w, 20, parent, rectfill_component:new(15),
             text_component:new(component.name or (component.tostr and component:tostr()) or "<???>", 1, 0, 0, 0, 0, 0))
-        ui_theme:decorate_button_skin(ui_rect:new(title.w - 20, 0, 20, 20, title), nil,
-            ui_theme.icon.close_x, function()
-                table.remove(list, list_index)
-                owner:run_processing()
-                anidraw:trigger_selected_objects_changed()
-                anidraw:clear_canvas()
-            end)
-
-        if list_index < #list then
-            ui_theme:decorate_button_skin(ui_rect:new(title.w - 40, 0, 20, 20, title), nil,
-                ui_theme.icon.tiny_triangle_down,
-                function()
-                    list[list_index], list[list_index + 1] = list[list_index + 1], list[list_index]
+        if list then
+            ui_theme:decorate_button_skin(ui_rect:new(title.w - 20, 0, 20, 20, title), nil,
+                ui_theme.icon.close_x, function()
+                    table.remove(list, list_index)
                     owner:run_processing()
                     anidraw:trigger_selected_objects_changed()
                     anidraw:clear_canvas()
                 end)
+        
+            if list_index < #list then
+                ui_theme:decorate_button_skin(ui_rect:new(title.w - 40, 0, 20, 20, title), nil,
+                    ui_theme.icon.tiny_triangle_down,
+                    function()
+                        list[list_index], list[list_index + 1] = list[list_index + 1], list[list_index]
+                        owner:run_processing()
+                        anidraw:trigger_selected_objects_changed()
+                        anidraw:clear_canvas()
+                    end)
+            end
         end
         if not component.editables then
             return
@@ -52,17 +54,17 @@ function object_inspector:initialize(right_bar_rect)
             local key = info.key
             local value = component[key] or info.default
             local rect = ui_rect:new(0, 0, parent.w, 20, parent)
+            local run_processing
             if info.type == "number_slider" then
                 add_slider((info.name or key) .. ": ", parent.w, 20, rect, info.min, info.max, value, function(value)
                     component[key] = value
-                    owner:run_processing()
-                    anidraw:clear_canvas()
+                    run_processing = true
                 end)
             elseif info.type == "toggle" then
                 ui_theme:decorate_toggle_skin(rect, (info.name or key), value, function(state)
                     component[key] = state
-                    owner:run_processing()
-                    anidraw:clear_canvas()
+                    run_processing = true
+                    anidraw:notify_modified(owner)
                 end)
             elseif info.type == "color" then
                 rect:add_component(text_component:new((info.name or key) .. ":", 0, 0, 0, 0, 0, 0))
@@ -90,6 +92,14 @@ function object_inspector:initialize(right_bar_rect)
                         ui_rect:new(x, y, 10, 10, rect:root()):add_component(menu_widget:new(color_menu, rect))
                     end
                 }
+            end
+            
+            if run_processing then
+                if owner.run_processing then
+                    owner:run_processing()
+                end
+                
+                anidraw:clear_canvas()
             end
         end
     end
@@ -123,6 +133,10 @@ function object_inspector:initialize(right_bar_rect)
             function tf:on_text_updated()
                 object.name = self.text
                 anidraw:notify_modified(object)
+            end
+
+            if object.editables then
+                add_component_inspector(object_rect, object, object)
             end
 
             if object.processing_components then
