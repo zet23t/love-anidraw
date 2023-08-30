@@ -50,7 +50,8 @@ function timeline_panel:initialize(bottom_bar)
                 instruction_rect:add_component(sprite_component:new(instruction.icon, 4, 2))
             end
 
-            local title_rect = ui_rect:new(0, 0, instruction_rect.w - 65, 22, instruction_rect)
+            local title_rect = ui_rect:new(0, 0, 0, 22, instruction_rect)
+            title_rect:add_component(parent_size_matcher_component:new(0,65,true,25))
             --title_rect:add_component(rectfill_component:new(4))
             title_rect.ignore_layouting = true
             title_rect:add_component {
@@ -63,7 +64,7 @@ function timeline_panel:initialize(bottom_bar)
             }
             local title = title_rect:add_component(
                 textfield_component:new(instruction.name or instruction:tostr(), pico8_colors.black, 4, 0,
-                0, 25, 0, 0))
+                0, 0, 0, 0))
             function title:on_text_updated()
                 instruction.name = self.text
                 anidraw:notify_modified(instruction)

@@ -81,7 +81,15 @@ local function init(root_rect)
         paint_component.canvas_draw_state = nil
     end
 
-    root_rect:add_component(menubar_widget:new({ File_1 = function() end }, 1))
+    root_rect:add_component(menubar_widget:new({
+        File_1 = {
+            Load_1 = require "anidraw.ui.load" (root_rect);
+            Save_2 = function() anidraw:save() end;
+            ["Save as_3"] = require "anidraw.ui.save" (root_rect);
+            _4 = true;
+            Exit_5 = function() love.event.quit(0) end;
+        }
+    }, 1))
     local client_space = ui_rect:new(0, 0, 0, 0, root_rect, parent_size_matcher_component:new(19, 0, 0, 0))
     local top_bar_rect = ui_rect:new(0, 0, 0, 22, client_space, parent_size_matcher_component:new(0, 0, true, 0),
         rectfill_component:new(5))
@@ -115,38 +123,13 @@ local function init(root_rect)
     decorate_as_cmd_bar(top_bar_rect)
 
     local file_dialog_widget = require "love-ui.widget.file_dialog_widget"
-    top_bar_rect:cmd(ui_theme.icon.save_disk, function()
-        --anidraw:save()
-        local fd = file_dialog_widget:new(ui_theme, "Save to file", "Save")
-        if anidraw.path then
-            fd:set_path(anidraw.path)
-        end
-        fd:show(root_rect, function(self, path)
-            if path then
-                if not path:match "%.ad" then
-                    path = path .. ".ad"
-                end
-                anidraw:save(path)
-            end
-        end)
-    end)
-    top_bar_rect:cmd(ui_theme.icon.open_folder, function()
-        local fd = file_dialog_widget:new(ui_theme, "Load from file", "Load")
-        if anidraw.path then
-            fd:set_path(anidraw.path)
-        end
-        fd:show(root_rect, function(self, path)
-            if path then
-                anidraw:load(path)
-                anidraw:clear_canvas()
-            end
-        end)
-    end)
+    top_bar_rect:cmd(ui_theme.icon.save_disk, function() anidraw:save() end)
+    top_bar_rect:cmd(ui_theme.icon.open_folder, require "anidraw.ui.load" (root_rect))
     top_bar_rect:cmd_space()
     top_bar_rect:cmd(ui_theme.icon.undo, function() end)
     top_bar_rect:cmd(ui_theme.icon.redo, function() end)
     top_bar_rect:cmd_space(8)
-    
+
     local add_slider = require "anidraw.ui.add_slider"
 
     --top_bar_rect:label("Pressure size:")

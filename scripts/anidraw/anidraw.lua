@@ -41,7 +41,8 @@ function anidraw:subscribe_to(object, fn)
 end
 
 function anidraw:save(path)
-    self.file_path = path
+    self.file_path = path or self.file_path or _G._saved_anidraw_path or "default.ad"
+    path = self.file_path 
     local done = bench:mark("bin-save")
     local data = table.concat(binary_serialize:serialize {
         instructions = self.instructions,
@@ -66,16 +67,17 @@ function anidraw:save(path)
     local fp = assert(io.open(path, "wb"))
     fp:write(data)
     fp:close()
+    print("Saved content to " .. path)
 end
 
 function anidraw:load(path)
-    self.file_path = path or _G._saved_anidraw_path or "tmp2.bin"
+    self.file_path = path or self.file_path or _G._saved_anidraw_path or "default.ad"
     
-    local fp = assert(io.open(self.file_path, "rb"))
-    local data = fp:read("*a")
-    fp:close()
-
+    
     local suc,err = pcall(function() 
+        local fp = assert(io.open(self.file_path, "rb"))
+        local data = fp:read("*a")
+        fp:close()
         local new_anidraw = binary_serialize:deserialize(data)
         _G._saved_anidraw_bin = data
         for k, v in pairs(new_anidraw) do
