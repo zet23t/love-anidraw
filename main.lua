@@ -15,20 +15,7 @@ local ui_theme                      = require "love-ui.ui_theme.ui_theme"
 local menu_widget                   = require "love-ui.widget.menu_widget"
 local textfield_component           = require "love-ui.components.generic.textfield_component"
 local anidraw                       = require "anidraw"
-
-local processors                    = {
-    "ad_stroke_smoothed_line_processor",
-    "ad_stroke_straight_line_processor",
-    "ad_stroke_regular_shape_processor",
-    "ad_stroke_triangulator_renderer",
-}
-
-do
-    -- need the classes to be loaded so deserialization can find them
-    for i = 1, #processors do
-        require("ad_stroke." .. processors[i])
-    end
-end
+local processors                    = require "anidraw.processors"
 
 love.window.setTitle("love-ani-draw")
 
@@ -137,7 +124,7 @@ local function init(root_rect)
         fd:show(root_rect, function(self, path)
             if path then
                 if not path:match "%.ad" then
-                    path = path..".ad"
+                    path = path .. ".ad"
                 end
                 anidraw:save(path)
             end
@@ -159,30 +146,8 @@ local function init(root_rect)
     top_bar_rect:cmd(ui_theme.icon.undo, function() end)
     top_bar_rect:cmd(ui_theme.icon.redo, function() end)
     top_bar_rect:cmd_space(8)
-    local invlerp = require "love-math.invlerp"
-
-    local function add_slider(title, width, height, parent, min, max, value, on_change)
-        value = invlerp(min, max, value)
-        local slider_rect = ui_rect:new(0, 0, width, height, parent, rectfill_component:new(1))
-        local slider_bar_rect = ui_rect:new(2, 2, slider_rect.w - 4, slider_rect.h - 4, slider_rect,
-            rectfill_component:new(2, 6))
-        local slider_text_rect = ui_rect:new(0, 0, slider_rect.w, slider_rect.h, slider_rect,
-            text_component:new(""))
-
-        local function set_slider_value(value)
-            local maxw = slider_rect.w - 4
-            slider_bar_rect.w = math.max(1, math.min(maxw, value * maxw))
-            value = min + (max - min) * value
-            slider_text_rect:trigger_on_components("set_text", string.format("%s%.2f", title or " ", value))
-            on_change(value)
-        end
-        slider_rect:add_component {
-            is_pressed_down = function(cmp, rect, mx, my)
-                set_slider_value(math.max(0, math.min(1, mx / rect.w)))
-            end
-        }
-        set_slider_value(value)
-    end
+    
+    local add_slider = require "anidraw.ui.add_slider"
 
     --top_bar_rect:label("Pressure size:")
     add_slider("Pressure size: ", 250, 22, top_bar_rect, -50, 50, .1, function(value)
@@ -213,152 +178,12 @@ local function init(root_rect)
         }
     end
 
-
-    local object_inspector = ui_rect:new(0, 0, right_bar_rect.w, 400, right_bar_rect)
-    local object_inspector_scroll_area = scroll_area_widget:new(ui_theme, right_bar_rect.w - 16, 200)
-    object_inspector_scroll_area.scroll_content:add_component(linear_layouter_component:new(2, false, 0, 0, 0, 0, 2))
-    object_inspector:add_component(object_inspector_scroll_area)
-    object_inspector:add_component(rectfill_component:new(6))
-    local function add_component_inspector(parent, component, owner, list, list_index)
-        local title = ui_rect:new(0, 0, parent.w, 20, parent, rectfill_component:new(15),
-            text_component:new(component.name or (component.tostr and component:tostr()) or "<???>", 1, 0, 0, 0, 0, 0))
-        ui_theme:decorate_button_skin(ui_rect:new(title.w - 20, 0, 20, 20, title), nil,
-            ui_theme.icon.close_x, function()
-                table.remove(list, list_index)
-                owner:run_processing()
-                anidraw:trigger_selected_objects_changed()
-                anidraw:clear_canvas()
-            end)
-
-        if list_index < #list then
-            ui_theme:decorate_button_skin(ui_rect:new(title.w - 40, 0, 20, 20, title), nil,
-                ui_theme.icon.tiny_triangle_down,
-                function()
-                    list[list_index], list[list_index + 1] = list[list_index + 1], list[list_index]
-                    owner:run_processing()
-                    anidraw:trigger_selected_objects_changed()
-                    anidraw:clear_canvas()
-                end)
-        end
-        if not component.editables then
-            return
-        end
-        for i = 1, #component.editables do
-            local info = component.editables[i]
-            local key = info.key
-            local value = component[key] or info.default
-            local rect = ui_rect:new(0, 0, parent.w, 20, parent)
-            if info.type == "number_slider" then
-                add_slider((info.name or key) .. ": ", parent.w, 20, rect, info.min, info.max, value, function(value)
-                    component[key] = value
-                    owner:run_processing()
-                    anidraw:clear_canvas()
-                end)
-            elseif info.type == "toggle" then
-                ui_theme:decorate_toggle_skin(rect, (info.name or key), value, function(state)
-                    component[key] = state
-                    owner:run_processing()
-                    anidraw:clear_canvas()
-                end)
-            elseif info.type == "color" then
-                rect:add_component(text_component:new((info.name or key) .. ":", 0, 0, 0, 0, 0, 0))
-                local color_preview = ui_rect:new(parent.w - 100, 0, 100, 20, rect,
-                    rectfill_component:new(value, 0))
-                local color_menu = {}
-                for i = 0, 15 do
-                    local index = i
-                    color_menu["color_" .. (i + 1)] = {
-                        no_sub_menu = true,
-                        draw = function(s, rect)
-                            local x, y = rect:to_world()
-                            require "love-ui.pico8api":rectfill(x, y, x + rect.w, y + rect.h, index)
-                        end,
-                        func = function()
-                            component[key] = pico8_colors[index]
-                            color_preview:trigger_on_components("set_fill", pico8_colors[index])
-                            anidraw:clear_canvas()
-                        end
-                    }
-                end
-                color_preview:add_component {
-                    was_triggered = function()
-                        local x, y = color_preview:to_world(0, 0)
-                        ui_rect:new(x, y, 10, 10, rect:root()):add_component(menu_widget:new(color_menu, rect))
-                    end
-                }
-            end
-        end
-    end
-    local function component_add_function(object, component_list, class_list)
-        return function(cmp, rect)
-            local menu = {}
-            for i = 1, #class_list do
-                local class = class_list[i]
-                menu[class:gsub("_", " ") .. "_" .. i] = function()
-                    component_list[#component_list + 1] = require("ad_stroke." .. class):new()
-                    object:run_processing()
-                    anidraw:clear_canvas()
-                    anidraw:trigger_selected_objects_changed()
-                end
-            end
-            local x, y = rect:to_world(0, 0)
-            ui_rect:new(x, y, 10, 10, rect:root()):add_component(menu_widget:new(menu, rect))
-        end
-    end
-
-    anidraw:add_object_selection_changed_listener(function(list)
-        object_inspector_scroll_area.scroll_content:remove_all_children()
-        for i = 1, #list do
-            local object = list[i]
-            local object_rect = ui_rect:new(0, 0, object_inspector_scroll_area.scroll_content.w, 20,
-                object_inspector_scroll_area.scroll_content)
-            object_rect:add_component(rectfill_component:new(6))
-            object_rect:add_component(linear_layouter_component:new(2, false, 0, 0, 0, 0, 2))
-            local tf = textfield_component:new(object.name or object:tostr(), 1, 0, 0, 0, 0, 0)
-            ui_rect:new(0, 0, object_rect.w, 20, object_rect, rectfill_component:new(9), tf)
-            function tf:on_text_updated()
-                object.name = self.text
-                anidraw:notify_modified(object)
-            end
-
-            if object.processing_components then
-                ui_rect:new(0, 0, object_rect.w - 10, 2, object_rect, rectfill_component:new(0))
-                ui_rect:new(0, 0, object_rect.w, 20, object_rect, rectfill_component:new(10),
-                    text_component:new("Processors", 1))
-                for i = 1, #object.processing_components do
-                    add_component_inspector(object_rect, object.processing_components[i], object,
-                        object.processing_components, i)
-                    ui_rect:new(0, 0, object_rect.w - 10, 1, object_rect, rectfill_component:new(0))
-                end
-                ui_theme:decorate_button_skin(ui_rect:new(0, 0, object_rect.w, 20, object_rect), "Add processor", nil,
-                    component_add_function(object, object.processing_components, processors))
-                ui_rect:new(0, 0, 10, 10, object_rect)
-            end
-            if object.drawing_components then
-                ui_rect:new(0, 0, object_rect.w - 10, 2, object_rect, rectfill_component:new(0))
-                ui_rect:new(0, 0, object_rect.w, 20, object_rect, rectfill_component:new(10),
-                    text_component:new("Renderers", 1))
-                for i = 1, #object.drawing_components do
-                    add_component_inspector(object_rect, object.drawing_components[i], object, object.drawing_components,
-                        i)
-                    ui_rect:new(0, 0, object_rect.w - 10, 1, object_rect, rectfill_component:new(0))
-                end
-                ui_theme:decorate_button_skin(ui_rect:new(0, 0, object_rect.w, 20, object_rect), "Add renderer", nil,
-                    component_add_function(object, object.drawing_components, {
-                        "ad_stroke_simple_renderer",
-                        "ad_stroke_triangulator_renderer",
-                    }))
-            end
-        end
-    end)
     local bottom_right_bar = ui_rect:new(0, 0, 0, 0, bottom_bar, parent_size_matcher_component:new(0, 0, 0, 300))
     local bottom_left_bar = ui_rect:new(0, 0, 300, 0, bottom_bar, parent_size_matcher_component:new(30, true, 0, 0))
 
+    require "anidraw.ui.object_inspector":initialize(right_bar_rect)
     require "anidraw.ui.timeline_panel":initialize(bottom_right_bar)
     require "anidraw.ui.layer_panel":initialize(bottom_left_bar)
-
-
-
 
     local function replay(speed)
         anidraw:clear_canvas()
