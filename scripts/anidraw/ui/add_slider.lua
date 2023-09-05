@@ -4,15 +4,23 @@ local rectfill_component = require "love-ui.components.generic.rectfill_componen
 
 local invlerp            = require "love-math.invlerp"
 
-local function add_slider(title, width, height, parent, min, max, value, on_change)
+local function add_slider(title, width, height, parent, min, max, value, on_change, x, y)
+    local current_value = value
     value = invlerp(min, max, value)
-    local slider_rect = ui_rect:new(0, 0, width, height, parent, rectfill_component:new(1))
+    local slider_rect = ui_rect:new(x or 0, y or 0, width, height, parent, rectfill_component:new(1))
     local slider_bar_rect = ui_rect:new(2, 2, slider_rect.w - 4, slider_rect.h - 4, slider_rect,
         rectfill_component:new(2, 6))
     local slider_text_rect = ui_rect:new(0, 0, slider_rect.w, slider_rect.h, slider_rect,
         text_component:new(""))
 
     local function set_slider_value(value)
+        if not value then 
+            return current_value
+        end
+        if value == current_value then
+            return
+        end
+        current_value = value
         local maxw = slider_rect.w - 4
         slider_bar_rect.w = math.max(1, math.min(maxw, value * maxw))
         value = min + (max - min) * value
@@ -25,6 +33,7 @@ local function add_slider(title, width, height, parent, min, max, value, on_chan
         end
     }
     set_slider_value(value)
+    return set_slider_value
 end
 
 return add_slider

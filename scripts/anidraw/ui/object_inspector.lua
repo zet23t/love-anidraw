@@ -49,21 +49,28 @@ function object_inspector:initialize(right_bar_rect)
         if not component.editables then
             return
         end
+        local function clear()
+            if owner.run_processing then
+                owner:run_processing()
+            end
+            anidraw:clear_canvas()
+        end
         for i = 1, #component.editables do
             local info = component.editables[i]
             local key = info.key
             local value = component[key] or info.default
             local rect = ui_rect:new(0, 0, parent.w, 20, parent)
-            local run_processing
             if info.type == "number_slider" then
                 add_slider((info.name or key) .. ": ", parent.w, 20, rect, info.min, info.max, value, function(value)
                     component[key] = value
-                    run_processing = true
+                    anidraw:notify_modified(owner)
+                    clear()
                 end)
             elseif info.type == "toggle" then
                 ui_theme:decorate_toggle_skin(rect, (info.name or key), value, function(state)
                     component[key] = state
-                    run_processing = true
+                    anidraw:notify_modified(owner)
+                    clear()
                     anidraw:notify_modified(owner)
                 end)
             elseif info.type == "color" then
@@ -82,6 +89,7 @@ function object_inspector:initialize(right_bar_rect)
                         func = function()
                             component[key] = pico8_colors[index]
                             color_preview:trigger_on_components("set_fill", pico8_colors[index])
+                            anidraw:notify_modified(owner)
                             anidraw:clear_canvas()
                         end
                     }
@@ -92,14 +100,6 @@ function object_inspector:initialize(right_bar_rect)
                         ui_rect:new(x, y, 10, 10, rect:root()):add_component(menu_widget:new(color_menu, rect))
                     end
                 }
-            end
-            
-            if run_processing then
-                if owner.run_processing then
-                    owner:run_processing()
-                end
-                
-                anidraw:clear_canvas()
             end
         end
     end

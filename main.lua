@@ -84,10 +84,11 @@ local function init(root_rect)
     root_rect:add_component(menubar_widget:new({
         File_1 = {
             Load_1 = require "anidraw.ui.load" (root_rect);
-            Save_2 = function() anidraw:save() end;
-            ["Save as_3"] = require "anidraw.ui.save" (root_rect);
-            _4 = true;
-            Exit_5 = function() love.event.quit(0) end;
+            Revert_2 = function() anidraw:load() end;
+            Save_3 = function() anidraw:save() end;
+            ["Save as_4"] = require "anidraw.ui.save" (root_rect);
+            _5 = true;
+            Exit_6 = function() love.event.quit(0) end;
         }
     }, 1))
     local client_space = ui_rect:new(0, 0, 0, 0, root_rect, parent_size_matcher_component:new(19, 0, 0, 0))
@@ -148,19 +149,8 @@ local function init(root_rect)
         anidraw.tools.pen.boundary_paint = state
     end, true)
 
-    local colorpicker_rect = ui_rect:new(540, 20, right_bar_rect.w, 200, right_bar_rect)
-    colorpicker_rect:add_component(rectfill_component:new(0))
-    for i = 0, 15 do
-        local x = i % 4
-        local y = (i - x) / 4
-        local color_rect = ui_rect:new(x * 50 + 2, y * 50 + 2, 46, 46, colorpicker_rect, rectfill_component:new(i))
-        color_rect:add_component {
-            was_triggered = function(cmp, rect)
-                anidraw:set_color(pico8_colors[i])
-            end
-        }
-    end
-
+    require "anidraw.ui.color_picker_ui":new(right_bar_rect)
+    
     local bottom_right_bar = ui_rect:new(0, 0, 0, 0, bottom_bar, parent_size_matcher_component:new(0, 0, 0, 300))
     local bottom_left_bar = ui_rect:new(0, 0, 300, 0, bottom_bar, parent_size_matcher_component:new(30, true, 0, 0))
 

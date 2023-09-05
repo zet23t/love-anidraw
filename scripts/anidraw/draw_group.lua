@@ -7,7 +7,7 @@ draw_group.icon = ui_theme.icon.open_folder
 draw_group.mod_count = 0
 draw_group.editables = editables:new()
     :toggle("hidden", "hidden", false)
-    :toggle("locked", "locked", false)
+    :toggle("folded", "folded", false)
     :options("animation_type", "animation type", {
         {"serial", "serial"},
         {"parallel", "parallel"},

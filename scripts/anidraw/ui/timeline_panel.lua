@@ -69,11 +69,17 @@ function timeline_panel:initialize(bottom_bar)
                 instruction.name = self.text
                 anidraw:notify_modified(instruction)
             end
+            local listeners = {}
+            local function add_listener(listener)
+                listeners[#listeners + 1] = listener
+            end
+
             local function update()
                 fill.is_selected = anidraw:is_selected(instruction)
                 fill:set_fill(fill.is_selected and pico8_colors.blue or pico8_colors.white)
                 title:set_text(instruction.name or instruction:tostr())
-                if not instruction.is_group then return end
+
+                for i=1,#listeners do listeners[i]() end
             end
             anidraw:subscribe_to(instruction, update)
             anidraw:add_object_selection_changed_listener(update)
@@ -113,28 +119,41 @@ function timeline_panel:initialize(bottom_bar)
             ui_theme:decorate_on_click(title_rect, function()
                 anidraw:select_object(instruction)
             end)
+            
             local delete_button = ui_rect:new(0, 0, 20, 20, instruction_rect, weighted_position_component:new(1, 0))
             delete_button.ignore_layouting = true
             ui_theme:decorate_button_skin(delete_button, nil, ui_theme.icon.close_x, function()
                 anidraw:delete_instruction(instruction)
                 anidraw:clear_canvas()
             end)
+
             local visibility_button = ui_rect:new(0, 0, 20, 20, instruction_rect, weighted_position_component:new(1, 0, 0, 20))
             visibility_button.ignore_layouting = true
+            local function update_visibility_button_sprite()
+                visibility_button:trigger_on_components("set_sprite", 
+                    instruction.hidden and ui_theme.icon.eye_closed or ui_theme.icon.eye_open)
+            end
+            add_listener(update_visibility_button_sprite)
             ui_theme:decorate_button_skin(visibility_button, nil, instruction.hidden and ui_theme.icon.eye_closed or ui_theme.icon.eye_open, function()
                 instruction.hidden = not instruction.hidden
-                visibility_button:trigger_on_components("set_sprite", instruction.hidden and ui_theme.icon.eye_closed or ui_theme.icon.eye_open)
+                update_visibility_button_sprite()
                 anidraw:clear_canvas()
             end)
+            
             if instruction.is_group then
                 -- foldable groups
                 local fold_button = ui_rect:new(0, 0, 20, 20, instruction_rect, weighted_position_component:new(1, 0, 0, 40))
                 fold_button.ignore_layouting = true
+                local function update_fold_button_sprite()
+                    fold_button:trigger_on_components("set_sprite", instruction.folded and ui_theme.icon.play or ui_theme.icon.triangle_down)
+                end
+                add_listener(update_fold_button_sprite)
                 ui_theme:decorate_button_skin(fold_button, nil, instruction.folded and ui_theme.icon.play or ui_theme.icon.triangle_down, function()
                     instruction.folded = not instruction.folded
-                    fold_button:trigger_on_components("set_sprite", instruction.folded and ui_theme.icon.play or ui_theme.icon.triangle_down)
+                    update_fold_button_sprite()
                 end)
             end
+            
             instruction_rect:add_component({
                 was_pressed_down = function(cmp, rect, mx, my)
                     if not rect:is_top_hit() then

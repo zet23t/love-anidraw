@@ -47,22 +47,10 @@ function anidraw:save(path)
     local data = table.concat(binary_serialize:serialize {
         instructions = self.instructions,
         selected_objects = self.selected_objects,
+        layers = self.layers,
     })
     done()
     _G._saved_anidraw_bin = data
-
-    -- done = bench:mark("lua-save")
-    -- local lua_data = serialize:serialize_to_string({
-    --     instructions = self.instructions,
-    --     selected_objects = self.selected_objects
-    -- })
-    -- done()
-    -- bench:flush_info()
-    -- print("Saved bin bytes: " .. #data .. " lua bytes: "..#_G._saved_anidraw)
-
-    -- local fp = assert(io.open("tmp.bin", "wb"))
-    -- fp:write(_G._saved_anidraw)
-    -- fp:close()
 
     local fp = assert(io.open(path, "wb"))
     fp:write(data)
@@ -83,6 +71,8 @@ function anidraw:load(path)
         for k, v in pairs(new_anidraw) do
             self[k] = v
         end
+        anidraw:clear_canvas()
+        anidraw:notify_modified(self)
     end)
     if not suc then
         print(err)
@@ -101,7 +91,35 @@ function anidraw:finish()
     anidraw.current_action = nil
 end
 
+local layer = require "anidraw.layer"
 
+function anidraw:get_layers()
+    local layers = self.layers
+    if not layers then 
+        layers = {}
+        self.layers = layers
+    end
+    return layers
+end
+
+function anidraw:new_layer()
+    local layers = self:get_layers()
+    local new_layer = layer:new()
+    layers[#layers + 1] = new_layer
+    self:notify_modified(layers)
+    return new_layer
+end
+
+function anidraw:remove_layer(layer)
+    local layers = self:get_layers()
+    for i = 1, #layers do
+        if layers[i] == layer then
+            table.remove(layers, i)
+            self:notify_modified(layers)
+            break
+        end
+    end
+end
 
 local function prepare_insertion(self, instruction)
     if instruction.group then
@@ -147,7 +165,6 @@ function anidraw:create_new_group(name)
 end
 
 local on_selected_objects_changed_listeners = {};
-
 
 function anidraw:trigger_selected_objects_changed()
     for i = 1, #on_selected_objects_changed_listeners do
@@ -230,6 +247,9 @@ end
 function anidraw:clear()
     self.instructions = {}
     self.highlighted_instructions = {}
+    self.layers = {}
+
+    self:notify_modified(self)
 end
 
 function anidraw:set_color(rgba)
