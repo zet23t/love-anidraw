@@ -1,4 +1,5 @@
 local editables = require "anidraw.ui.editables"
+local anidraw   = require "anidraw.instance"
 
 local ad_stroke_simple_renderer = require "love-util.class" "ad_stroke_simple_renderer"
 ad_stroke_simple_renderer.editables = editables:new()
@@ -46,6 +47,14 @@ local function draw_strokes(output_data, t, min_size, thickness)
                 end
             end
         end
+    end
+end
+
+function ad_stroke_simple_renderer:layer_was_removed(instruction, layer)
+    if layer == self.layer then
+        self.layer = nil
+        anidraw:notify_modified(instruction)
+        anidraw:notify_modified(self)
     end
 end
 

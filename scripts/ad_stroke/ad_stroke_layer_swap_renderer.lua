@@ -10,6 +10,14 @@ function ad_stroke_layer_swap_renderer:new(color)
     }
 end
 
+function ad_stroke_layer_swap_renderer:layer_was_removed(layer)
+    if layer == self.layer_a then
+        self.layer_a = nil
+    elseif layer == self.layer_b then
+        self.layer_b = nil
+    end
+end
+
 function ad_stroke_layer_swap_renderer:draw(ad_stroke, output_data, t, layer)
     if layer == self.layer_a then
         return self.layer_b

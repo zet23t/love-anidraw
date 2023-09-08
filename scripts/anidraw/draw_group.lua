@@ -58,6 +58,25 @@ function draw_group:add_instruction(instruction)
     anidraw:clear_canvas()
 end
 
+function draw_group:layer_was_removed(layer)
+    for i = 1, #self.instructions do
+        self.instructions[i]:layer_was_removed(layer)
+    end
+    local function trigger_on_components(components)
+        for i = 1, #components do
+            local cmp = components[i]
+            if cmp.layer_was_removed then
+                cmp:layer_was_removed(self, layer)
+            end
+        end
+    end
+    local preprocessing, postprocessing = self:get_processing_components()
+    trigger_on_components(preprocessing.processing_components)
+    trigger_on_components(preprocessing.drawing_components)
+    trigger_on_components(postprocessing.processing_components)
+    trigger_on_components(postprocessing.drawing_components)
+end
+
 function draw_group:run_processing()
     for i = 1, #self.instructions do
         self.instructions[i]:run_processing()

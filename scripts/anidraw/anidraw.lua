@@ -109,6 +109,7 @@ function anidraw:new_layer()
     local new_layer = layer:new()
     layers[#layers + 1] = new_layer
     self:notify_modified(layers)
+    self:notify_modified(self)
     return new_layer
 end
 
@@ -117,7 +118,15 @@ function anidraw:remove_layer(layer)
     for i = 1, #layers do
         if layers[i] == layer then
             table.remove(layers, i)
+
+            for i = #self.instructions, 1, -1 do
+                local instruction = self.instructions[i]
+                instruction:layer_was_removed(layer)
+            end
+
             self:notify_modified(layers)
+            self:notify_modified(self)
+            self:clear_canvas()
             break
         end
     end
@@ -260,7 +269,7 @@ end
 
 function anidraw:draw(draw_state, draw_temporary, layer)
     assert(draw_state)
-    if self.grid_enabled and draw_temporary then
+    if self.grid_enabled and draw_temporary and not layer then
         love.graphics.setColor(0, 0, 0, 0.1)
         for x = 0, self.canvas_size[1], self.grid_size do
             love.graphics.line(x, 0, x, self.canvas_size[2])

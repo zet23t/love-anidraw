@@ -72,6 +72,11 @@ function layer_panel:update_layers(layers)
                 layer.name = self.text
                 anidraw:notify_modified(layer)
             end
+            layer_rect.delete_button = ui_rect:new(0, 0, 22, 22, layer_rect, parent_size_matcher_component:new(0, 0, true, true)) 
+            ui_theme:decorate_button_skin(layer_rect.delete_button, nil, ui_theme.icon.close_x, 
+                function() 
+                    anidraw:remove_layer(layer)
+                end)
             layer_rect.layer_title_rect = ui_rect:new(0, 0, 0, 0, layer_rect,
                 parent_size_matcher_component:new(0, 30, 0, 25))
             layer_rect.layer_title_rect:add_component(rectfill_component:new(15))

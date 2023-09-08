@@ -19,10 +19,10 @@ function ad_stroke:run_components(components, fn, ...)
     for i = 1, #components do
         local cmp = components[i]
         if not cmp[fn] then
-            print("warning, no such function: ", fn, cmp)
-            for k, v in pairs(cmp) do
-                print(k, v)
-            end
+            -- print("warning, no such function: ", fn, cmp)
+            -- for k, v in pairs(cmp) do
+            --     print(k, v)
+            -- end
         else
             cmp[fn](cmp, self, ...)
         end
@@ -132,6 +132,12 @@ function ad_stroke:get_run_children_renderers_state()
     if not self.group then return true end
     return self.group:get_run_children_renderers_state()
 end
+
+function ad_stroke:layer_was_removed(layer)
+    self:run_components(self.processing_components, "layer_was_removed", layer)
+    self:run_components(self.drawing_components, "layer_was_removed", layer)
+end
+
 function ad_stroke:draw(t, draw_state, temporary, layer)
     layer = run_group_renderer(self, "get_preprocessing_components", "drawing_components", "draw", self.group, self.output_data, t, layer)
     
