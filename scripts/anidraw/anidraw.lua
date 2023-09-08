@@ -258,7 +258,7 @@ function anidraw:set_color(rgba)
     self.current_color = rgba
 end
 
-function anidraw:draw(draw_state, draw_temporary)
+function anidraw:draw(draw_state, draw_temporary, layer)
     assert(draw_state)
     if self.grid_enabled and draw_temporary then
         love.graphics.setColor(0, 0, 0, 0.1)
@@ -279,12 +279,12 @@ function anidraw:draw(draw_state, draw_temporary)
             if not instruction.hidden then
                 if remaining < instruction.finish_time then
                     if draw_temporary or instruction.is_group then
-                        instruction:draw(remaining, draw_state, draw_temporary)
+                        instruction:draw(remaining, draw_state, draw_temporary, layer)
                     end
                     break
                 else
                     if not draw_state[instruction] then
-                        local is_done = instruction:draw(remaining, draw_state, draw_temporary)
+                        local is_done = instruction:draw(remaining, draw_state, draw_temporary, layer)
                         if not draw_temporary then
                             draw_state[instruction] = is_done or is_done == nil
                         end

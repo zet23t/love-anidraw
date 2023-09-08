@@ -47,7 +47,8 @@ local function draw_strokes(output_data, t, min_size, thickness)
     end
 end
 
-function ad_stroke_simple_renderer:draw(ad_stroke, output_data, t)
+function ad_stroke_simple_renderer:draw(ad_stroke, output_data, t, layer)
+    if layer ~= self.layer then return end
     local r,g,b,a = unpack(self.color)
     love.graphics.setColor(r,g,b,a)
     if #output_data == 1 then

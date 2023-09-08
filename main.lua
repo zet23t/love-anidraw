@@ -19,6 +19,9 @@ local processors                    = require "anidraw.processors"
 
 love.window.setTitle("love-ani-draw")
 
+
+local layer_data = setmetatable({}, {__mode = "k"})
+
 local function decorate_as_cmd_bar(left_bar)
     local groups = {}
     function left_bar:set_selected(rect)
@@ -78,6 +81,7 @@ local function init(root_rect)
 
     function anidraw:clear_canvas()
         -- print(debug.traceback("clear canvas"))
+        layer_data = {}
         paint_component.canvas_draw_state = nil
     end
 
@@ -403,33 +407,50 @@ local function init(root_rect)
         end
 
         --pen_reading()
-        local cw, ch = unpack(anidraw.canvas_size)
-        if not self.canvas or self.canvas:getWidth() ~= cw or self.canvas:getHeight() ~= ch then
-            self.canvas = love.graphics.newCanvas(cw, ch)
-            self.canvas_draw_state = nil
-        end
-        love.graphics.setCanvas(self.canvas)
-        if not self.canvas_draw_state then
-            love.graphics.clear(1, 1, 1, 0)
-        end
-        self.canvas_draw_state = self.canvas_draw_state or {}
-        anidraw:draw(self.canvas_draw_state, false)
-        love.graphics.setCanvas()
+        local function draw_layer(layer)
+            love.graphics.setScissor()
 
-        local x, y = rect:to_world()
-        local w, h = rect.w, rect.h
-        love.graphics.setScissor(x, y, w, h)
-        love.graphics.push()
+            local layer_info = layer_data[layer or "default"]
+            if not layer_info then
+                layer_info = {}
+                layer_data[layer or "default"] = layer_info
+            end
 
-        love.graphics.translate(rect:to_world())
-        love.graphics.applyTransform(self.transform)
-        love.graphics.setColor(0, 0, 0, 1)
-        love.graphics.rectangle("line", 0, 0, cw, ch)
-        love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.draw(self.canvas)
-        self.canvas_draw_state = self.canvas_draw_state or {}
-        anidraw:draw(self.canvas_draw_state, true)
-        love.graphics.pop()
+            local cw, ch = unpack(anidraw.canvas_size)
+            if not layer_info.canvas or layer_info.canvas:getWidth() ~= cw or layer_info.canvas:getHeight() ~= ch then
+                layer_info.canvas = love.graphics.newCanvas(cw, ch)
+                layer_info.canvas_draw_state = nil
+            end
+            love.graphics.setCanvas(layer_info.canvas)
+            if not layer_info.canvas_draw_state then
+                love.graphics.clear(1, 1, 1, 0)
+            end
+            layer_info.canvas_draw_state = layer_info.canvas_draw_state or {}
+            anidraw:draw(layer_info.canvas_draw_state, false, layer)
+            love.graphics.setCanvas()
+
+            local x, y = rect:to_world()
+            local w, h = rect.w, rect.h
+            love.graphics.setScissor(x, y, w, h)
+            
+            love.graphics.push()
+            love.graphics.translate(rect:to_world())
+            love.graphics.applyTransform(self.transform)
+            love.graphics.setColor(0, 0, 0, 1)
+            love.graphics.rectangle("line", 0, 0, cw, ch)
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.draw(layer_info.canvas)
+            layer_info.canvas_draw_state = layer_info.canvas_draw_state or {}
+            anidraw:draw(layer_info.canvas_draw_state, true, layer)
+            love.graphics.pop()
+        end
+
+        local layers = anidraw:get_layers()
+        for i=1,#layers do
+            draw_layer(layers[i])
+        end
+
+        draw_layer(nil)
 
         love.graphics.push()
         love.graphics.translate(rect:to_world())

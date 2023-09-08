@@ -80,7 +80,7 @@ function draw_group:draw_highlight()
     end
 end
 
-function draw_group:draw(t, draw_state, draw_temporary)
+function draw_group:draw(t, draw_state, draw_temporary, layer)
     self:update_finish_time()
     if #self.instructions > 0 then
         local start_time = self.instructions[1].start_time
@@ -90,12 +90,12 @@ function draw_group:draw(t, draw_state, draw_temporary)
             if not instruction.hidden then
                 if remaining < instruction.finish_time then
                     if draw_temporary then
-                        instruction:draw(remaining, draw_state, draw_temporary)
+                        instruction:draw(remaining, draw_state, draw_temporary, layer)
                     end
                     return false
                 else --if not draw_temporary then
                     if not draw_state[instruction] then
-                        local is_done = instruction:draw(remaining, draw_state, draw_temporary)
+                        local is_done = instruction:draw(remaining, draw_state, draw_temporary, layer)
                         if not draw_temporary then
                             draw_state[instruction] = is_done or is_done == nil
                         end

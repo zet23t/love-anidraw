@@ -89,7 +89,7 @@ function timeline_panel:initialize(bottom_bar)
                     anidraw:add_object_selection_changed_listener(update)
                 end,
                 on_removed = function()
-                    anidraw:unsubscribe_from(instruction)
+                    anidraw:unsubscribe_from(instruction, update)
                     anidraw:remove_object_selection_changed_listener(update)
                 end,
                 is_mouse_over = function(cmp, rect, mx, my)

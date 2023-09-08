@@ -94,8 +94,8 @@ function ad_stroke:draw_highlight()
     love.graphics.setLineWidth(lw)
 end
 
-function ad_stroke:draw(t)
-    self:run_components(self.drawing_components, "draw", self.output_data, t)
+function ad_stroke:draw(t, draw_state, temporary, layer)
+    self:run_components(self.drawing_components, "draw", self.output_data, t, layer)
 
     local dd = debug_draw[self]
     if dd then

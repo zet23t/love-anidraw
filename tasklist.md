@@ -31,7 +31,7 @@
     Implementation steps:
     [x] create UI to add a group
     [x] display groups in ui list
-    [ ] selectable groups
+    [x] selectable groups
         [ ] Animate options for groups
         [ ] Pre/Post-processors / Pre/Post-renderers
     [x] foldable groups
@@ -49,14 +49,16 @@
     [ ] Integrate groups into drawing workflow
         [ ] current drawing inserts into group
 - Layers
-    [ ] Consider how layers should work
+    [x] Consider how layers should work
         - Setting of the stroke or setting of the renderer?
         - If it's a setting of the stroke, the UI is relatively easy, as it's a 1:n relationship
         - If it's a setting of the renderer, the relationship is m:n - which is difficult to settle in UI
         - 
-    [ ] add UI
-    [ ] assignable layers
-    [ ]
+    [x] add UI
+    [x] assignable layers
+    [ ] Layer rendering
+    [ ] Groups layer assignment remapping: 
+        By mapping a layer such as "no layer" to a layer (or the reverse), the drawing setup can conveniently change drawing operations without taking freedom away from child operations
 - Selection system
     [ ] allow selection of multiple objects
     [ ] highlight strokes mouseover
@@ -65,3 +67,10 @@
 - Performance improvements
     [x] draw on canvas, refresh only on change
     [ ] Optimize line renderer
+- Groups
+    [ ] Group components for the instruction itself
+    [ ] Processors and renderers on groups
+        [ ] Prepend to existing child renderers / processors
+        [ ] Append to existing child renderers / processors
+        [ ] Disabling renderers / processors of children
+
