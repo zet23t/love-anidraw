@@ -15,7 +15,7 @@ local textfield_component           = require "love-ui.components.generic.textfi
 local processors                    = require "anidraw.processors"
 
 
-local object_inspector              = {}
+local object_inspector = {}
 
 function object_inspector:initialize(right_bar_rect)
     local object_inspector_rect = ui_rect:new(0, 0, right_bar_rect.w, 400, right_bar_rect)
@@ -34,7 +34,7 @@ function object_inspector:initialize(right_bar_rect)
                     anidraw:trigger_selected_objects_changed()
                     anidraw:clear_canvas()
                 end)
-        
+
             if list_index < #list then
                 ui_theme:decorate_button_skin(ui_rect:new(title.w - 40, 0, 20, 20, title), nil,
                     ui_theme.icon.tiny_triangle_down,
@@ -65,6 +65,40 @@ function object_inspector:initialize(right_bar_rect)
                     component[key] = value
                     anidraw:notify_modified(owner)
                     clear()
+                end)
+            elseif info.type == "layer" then
+                local def_name = {name = "<unset>"}
+                local function get_layer_name()
+                    return (info.name or key) .. ": " .. tostring(((component[key] or info.default) or def_name).name)
+                end
+                local layer_name = rect:add_component(text_component:new(get_layer_name, 0, 0, 0, 0, 0, 0))
+                anidraw:subscribe_to(component, function()
+                    layer_name:refresh_text()
+                end)
+                local change_button = ui_rect:new(parent.w - 40, 0, 40, 20, rect)
+                ui_theme:decorate_button_skin(change_button, "...", nil, function()
+                    local layer_menu = {}
+                    layer_menu["unset layer_1"] = function ()
+                        component[key] = nil
+                        anidraw:notify_modified(owner)
+                        anidraw:clear_canvas()
+                    end
+                    local layers = anidraw:get_layers()
+                    for i = 1, #layers do
+                        local layer = layers[i]
+                        local name = (layers[i].name or ""):gsub("_", " ")
+                        layer_menu[name .. "_" .. (i + 1)] = {
+                            no_sub_menu = true,
+                            func = function()
+                                component[key] = layer
+                                --layer_name:refresh_text()
+                                anidraw:notify_modified(owner)
+                                anidraw:clear_canvas()
+                            end
+                        }
+                    end
+                    local x, y = change_button:to_world(0, 0)
+                    ui_rect:new(x, y, 10, 10, rect:root()):add_component(menu_widget:new(layer_menu, rect))
                 end)
             elseif info.type == "toggle" then
                 ui_theme:decorate_toggle_skin(rect, (info.name or key), value, function(state)

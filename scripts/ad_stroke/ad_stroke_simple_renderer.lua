@@ -1,5 +1,6 @@
 local ad_stroke_simple_renderer = require "love-util.class" "ad_stroke_simple_renderer"
 ad_stroke_simple_renderer.editables = {
+    {key = "layer"; type = "layer"; name="Layer"; default = nil},
     {key = "color"; type = "color"; name="Color"; default = {1, 1, 1, 1}},
     {key = "min_size"; type = "number_slider"; name="Min size"; min = -50; max = 50; step = 1; default = 2},
     {key = "thickness"; type = "number_slider"; name="Pressure size"; min = -50; max = 50; step = 1; default = 5},

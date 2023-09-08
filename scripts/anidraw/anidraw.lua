@@ -3,9 +3,11 @@ local binary_serialize = require "love-util.binary_serialize"
 local anidraw = require "anidraw.instance"
 local bench = require "love-util.bench"
 local draw_group = require "anidraw.draw_group"
+local late_command = require "love-util.late_command"
 
+local _mt_weak_keys = {__mode = "k"}
 anidraw.tools = {}
-anidraw.registered_notification_listeners = setmetatable({}, { __mode = "k" })
+anidraw.registered_notification_listeners = setmetatable({}, _mt_weak_keys)
 anidraw.tools.pen = require "anidraw.tools.pen"
 anidraw.highlighted_instructions = {}
 
@@ -14,30 +16,26 @@ function anidraw:add_point(x, y, pressure)
 end
 
 function anidraw:notify_modified(object)
-    local list = anidraw.registered_notification_listeners[object]
-    if not list then return end
-    for i = 1, #list do
-        list[i](object)
+    local dict = anidraw.registered_notification_listeners[object]
+    if not dict then return end
+    for fn in pairs(dict) do
+        fn(object)
     end
 end
 
 function anidraw:unsubscribe_from(object, fn)
-    local list = anidraw.registered_notification_listeners[object]
-    if not list then return end
-    for i = #list, 1, -1 do
-        if list[i] == fn then
-            table.remove(list, i)
-        end
-    end
+    local dict = anidraw.registered_notification_listeners[object]
+    if not dict then return end
+    dict[fn] = nil
 end
 
 function anidraw:subscribe_to(object, fn)
-    local list = anidraw.registered_notification_listeners[object]
-    if not list then
-        list = {}
-        anidraw.registered_notification_listeners[object] = list
+    local dict = anidraw.registered_notification_listeners[object]
+    if not dict then
+        dict = setmetatable({}, _mt_weak_keys)
+        anidraw.registered_notification_listeners[object] = dict
     end
-    list[#list + 1] = fn
+    dict[fn] = true
 end
 
 function anidraw:save(path)
@@ -72,7 +70,11 @@ function anidraw:load(path)
             self[k] = v
         end
         anidraw:clear_canvas()
-        anidraw:notify_modified(self)
+        late_command(function()
+            collectgarbage()
+            print("Loaded content from " .. self.file_path)
+            anidraw:notify_modified(self)
+        end)
     end)
     if not suc then
         print(err)

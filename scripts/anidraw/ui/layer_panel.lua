@@ -41,14 +41,16 @@ function layer_panel:initialize(parent_rect)
     self.layer_scroll_content = layer_scroll_area.scroll_content
     self.layer_rects = {}
 
-    local function subscribe()
+    local function on_layer_updated()
         local layers = anidraw:get_layers()
         anidraw:subscribe_to(layers, function(layers) self:update_layers(layers) end)
         self:update_layers(layers)
     end
 
-    anidraw:subscribe_to(anidraw, subscribe)
-    subscribe()
+    -- need the reference because subscribers are weakly referenced
+    self.on_layer_updated = on_layer_updated
+    anidraw:subscribe_to(anidraw, on_layer_updated)
+    on_layer_updated()
 end
 
 function layer_panel:update_layers(layers)
@@ -66,6 +68,10 @@ function layer_panel:update_layers(layers)
             self.layer_rects[#self.layer_rects + 1] = layer_rect
             layer_rect.layer = layer
             layer_rect.layer_title = textfield_component:new(layer.name, 0, 0, 0, 0, 0, 0, 0.5)
+            function layer_rect.layer_title:on_text_updated()
+                layer.name = self.text
+                anidraw:notify_modified(layer)
+            end
             layer_rect.layer_title_rect = ui_rect:new(0, 0, 0, 0, layer_rect,
                 parent_size_matcher_component:new(0, 30, 0, 25))
             layer_rect.layer_title_rect:add_component(rectfill_component:new(15))
