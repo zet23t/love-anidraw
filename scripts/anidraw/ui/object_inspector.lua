@@ -13,6 +13,7 @@ local anidraw                       = require "anidraw"
 local add_slider                    = require "anidraw.ui.add_slider"
 local textfield_component           = require "love-ui.components.generic.textfield_component"
 local processors                    = require "anidraw.processors"
+local renderers                     = require "anidraw.renderers"
 
 
 local object_inspector = {}
@@ -67,7 +68,7 @@ function object_inspector:initialize(right_bar_rect)
                     clear()
                 end)
             elseif info.type == "layer" then
-                local def_name = {name = "<unset>"}
+                local def_name = { name = "<unset>" }
                 local function get_layer_name()
                     return (info.name or key) .. ": " .. tostring(((component[key] or info.default) or def_name).name)
                 end
@@ -78,7 +79,7 @@ function object_inspector:initialize(right_bar_rect)
                 local change_button = ui_rect:new(parent.w - 40, 0, 40, 20, rect)
                 ui_theme:decorate_button_skin(change_button, "...", nil, function()
                     local layer_menu = {}
-                    layer_menu["unset layer_1"] = function ()
+                    layer_menu["unset layer_1"] = function()
                         component[key] = nil
                         anidraw:notify_modified(owner)
                         anidraw:clear_canvas()
@@ -173,33 +174,35 @@ function object_inspector:initialize(right_bar_rect)
                 add_component_inspector(object_rect, object, object)
             end
 
-            if object.processing_components then
+            local function handle_component_list(title, list, add_cmd_name, component_list)
                 ui_rect:new(0, 0, object_rect.w - 10, 2, object_rect, rectfill_component:new(0))
                 ui_rect:new(0, 0, object_rect.w, 20, object_rect, rectfill_component:new(10),
-                    text_component:new("Processors", 1))
-                for i = 1, #object.processing_components do
-                    add_component_inspector(object_rect, object.processing_components[i], object,
-                        object.processing_components, i)
+                    text_component:new(title, 1))
+                for i = 1, #list do
+                    add_component_inspector(object_rect, list[i], object,
+                        list, i)
                     ui_rect:new(0, 0, object_rect.w - 10, 1, object_rect, rectfill_component:new(0))
                 end
-                ui_theme:decorate_button_skin(ui_rect:new(0, 0, object_rect.w, 20, object_rect), "Add processor", nil,
-                    component_add_function(object, object.processing_components, processors))
+                ui_theme:decorate_button_skin(ui_rect:new(0, 0, object_rect.w, 20, object_rect), add_cmd_name, nil,
+                    component_add_function(object, list, component_list))
                 ui_rect:new(0, 0, 10, 10, object_rect)
             end
+
+            if object.children_preprocessing then
+                handle_component_list("Pre-Processors", object.children_preprocessing.processing_components, "Add processor", processors)
+                handle_component_list("Pre-Renderers", object.children_preprocessing.drawing_components, "Add renderer", renderers)
+            end
+
+            if object.children_postprocessing then
+                handle_component_list("Post-Processors", object.children_postprocessing.processing_components, "Add processor", processors)
+                handle_component_list("Post-Renderers", object.children_postprocessing.drawing_components, "Add renderer", renderers)
+            end
+
+            if object.processing_components then
+                handle_component_list("Processors", object.processing_components, "Add processor", processors)
+            end
             if object.drawing_components then
-                ui_rect:new(0, 0, object_rect.w - 10, 2, object_rect, rectfill_component:new(0))
-                ui_rect:new(0, 0, object_rect.w, 20, object_rect, rectfill_component:new(10),
-                    text_component:new("Renderers", 1))
-                for i = 1, #object.drawing_components do
-                    add_component_inspector(object_rect, object.drawing_components[i], object, object.drawing_components,
-                        i)
-                    ui_rect:new(0, 0, object_rect.w - 10, 1, object_rect, rectfill_component:new(0))
-                end
-                ui_theme:decorate_button_skin(ui_rect:new(0, 0, object_rect.w, 20, object_rect), "Add renderer", nil,
-                    component_add_function(object, object.drawing_components, {
-                        "ad_stroke_simple_renderer",
-                        "ad_stroke_triangulator_renderer",
-                    }))
+                handle_component_list("Renderers", object.drawing_components, "Add renderer", renderers)
             end
         end
     end)

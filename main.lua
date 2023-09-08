@@ -422,8 +422,9 @@ local function init(root_rect)
                 layer_info.canvas_draw_state = nil
             end
             love.graphics.setCanvas(layer_info.canvas)
+            love.graphics.setBlendMode("alpha")
             if not layer_info.canvas_draw_state then
-                love.graphics.clear(1, 1, 1, 0)
+                love.graphics.clear(0, 0, 0, 0)
             end
             layer_info.canvas_draw_state = layer_info.canvas_draw_state or {}
             anidraw:draw(layer_info.canvas_draw_state, false, layer)
@@ -439,7 +440,9 @@ local function init(root_rect)
             love.graphics.setColor(0, 0, 0, 1)
             love.graphics.rectangle("line", 0, 0, cw, ch)
             love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.setBlendMode("alpha", "premultiplied")
             love.graphics.draw(layer_info.canvas)
+            love.graphics.setBlendMode("alpha", "alphamultiply")
             layer_info.canvas_draw_state = layer_info.canvas_draw_state or {}
             anidraw:draw(layer_info.canvas_draw_state, true, layer)
             love.graphics.pop()

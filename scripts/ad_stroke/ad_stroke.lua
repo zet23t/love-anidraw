@@ -39,10 +39,28 @@ function ad_stroke:add_renderer(cmp)
     return self
 end
 
+local function run_group_processors(self, getter, which, fn_name, group, ...)
+    if not group then return end
+    run_group_processors(self, getter, which, fn_name, group.group, ...)
+    if not group[getter] then
+        print("warning, no such function: ", getter, group, getmetatable(group))
+        for index, value in pairs(group) do
+            print(index, value)
+        end
+    end
+    local preprocessing = group[getter](group)[which]
+    for i=1,#preprocessing do
+        local cmp = preprocessing[i]
+        cmp[fn_name](cmp, self, ...)
+    end
+end
+
 function ad_stroke:run_processing()
     self.output_data = {}
     debug_draw[self] = {}
+    run_group_processors(self, "get_preprocessing_components", "processing_components", "process", self.group, self.input_data, self.output_data)
     self:run_components(self.processing_components, "process", self.input_data, self.output_data)
+    run_group_processors(self, "get_postprocessing_components", "processing_components", "process", self.group, self.input_data, self.output_data)
 end
 
 function ad_stroke:add(x, y, pressure)
@@ -94,9 +112,46 @@ function ad_stroke:draw_highlight()
     love.graphics.setLineWidth(lw)
 end
 
+local function run_group_renderer(self, getter, which, fn_name, group, output_data, t, layer)
+    if not group then return layer end
+    layer = run_group_renderer(self, getter, which, fn_name, group.group, output_data, t, layer)
+    if not group[getter] then
+        print("warning, no such function: ", getter, group, getmetatable(group))
+        for index, value in pairs(group) do
+            print(index, value)
+        end
+    end
+    local preprocessing = group[getter](group)[which]
+    for i=1,#preprocessing do
+        local cmp = preprocessing[i]
+        layer = cmp[fn_name](cmp, self, output_data, t, layer)
+    end
+    return layer
+end
+function ad_stroke:get_run_children_renderers_state()
+    if not self.group then return true end
+    return self.group:get_run_children_renderers_state()
+end
 function ad_stroke:draw(t, draw_state, temporary, layer)
-    self:run_components(self.drawing_components, "draw", self.output_data, t, layer)
-
+    layer = run_group_renderer(self, "get_preprocessing_components", "drawing_components", "draw", self.group, self.output_data, t, layer)
+    
+    if self:get_run_children_renderers_state() then
+        local components = self.drawing_components
+        for i = 1, #components do
+            local cmp = components[i]
+            if not cmp.draw then
+                print("warning, no draw function: ", cmp)
+                for k, v in pairs(cmp) do
+                    print(k, v)
+                end
+            else
+                layer = cmp:draw(self, self.output_data, t, layer)
+            end
+        end
+    end
+    
+    layer = run_group_renderer(self, "get_postprocessing_components", "drawing_components", "draw", self.group, self.output_data, t, layer)
+    
     local dd = debug_draw[self]
     if dd then
         for i = 1, #dd do

@@ -1,5 +1,6 @@
 local ad_stroke_triangulator_renderer = require "love-util.class" "ad_stroke_triangulator_renderer"
 ad_stroke_triangulator_renderer.editables = {
+    {key = "layer"; type = "layer"; name="Layer"; default = nil},
     {key = "color"; type = "color"; name="Color"; default = {1, 1, 1, 1}}
 }
 function ad_stroke_triangulator_renderer:new(color)
@@ -39,7 +40,8 @@ local function draw_strokes(output_data, t, min_size, thickness)
     end
 end
 
-function ad_stroke_triangulator_renderer:draw(ad_stroke, output_data, t)
+function ad_stroke_triangulator_renderer:draw(ad_stroke, output_data, t, layer)
+    if self.layer ~= layer then return layer end
     local r,g,b,a = unpack(self.color)
     love.graphics.setColor(r,g,b,a)
     if #output_data <= 3 then
@@ -73,6 +75,7 @@ function ad_stroke_triangulator_renderer:draw(ad_stroke, output_data, t)
         love.graphics.line(self.vertices)
     end
     love.graphics.setColor(1, 1, 1)
+    return layer
 end
 
 return ad_stroke_triangulator_renderer

@@ -8,6 +8,8 @@ draw_group.mod_count = 0
 draw_group.editables = editables:new()
     :toggle("hidden", "hidden", false)
     :toggle("folded", "folded", false)
+    :toggle("run_children_processors", "run_children_processors", true)
+    :toggle("run_children_renderers", "run_children_renderers", true)
     :options("animation_type", "animation type", {
         {"serial", "serial"},
         {"parallel", "parallel"},
@@ -18,7 +20,27 @@ function draw_group:new(name)
         name = name or "New Group",
         instructions = {},
         finish_time = 0,
+        children_preprocessing = {
+            processing_components = {},
+            drawing_components = {},
+        },
+        children_postprocessing = {
+            processing_components = {},
+            drawing_components = {},
+        },
     }
+end
+
+function draw_group:get_run_children_renderers_state()
+    if self.run_children_renderers ~= nil then
+        return self.run_children_renderers
+    end
+
+    if self.group then
+        return self.group:get_run_children_renderers_state()
+    end
+
+    return true
 end
 
 function draw_group:add_instruction(instruction)
@@ -34,6 +56,35 @@ function draw_group:add_instruction(instruction)
     self:flag_modified()
     self:update_finish_time()
     anidraw:clear_canvas()
+end
+
+function draw_group:run_processing()
+    for i = 1, #self.instructions do
+        self.instructions[i]:run_processing()
+    end
+end
+
+function draw_group:get_processing_components()
+    if not self.children_preprocessing then
+        self.children_preprocessing = {
+            processing_components = {},
+            drawing_components = {},
+        }
+        self.children_postprocessing = {
+            processing_components = {},
+            drawing_components = {},
+        }
+    end
+    return self.children_preprocessing, self.children_postprocessing
+end
+
+function draw_group:get_preprocessing_components()
+    return self:get_processing_components()
+end
+
+function draw_group:get_postprocessing_components()
+    local _,a = self:get_processing_components()
+    return a
 end
 
 function draw_group:flag_modified()

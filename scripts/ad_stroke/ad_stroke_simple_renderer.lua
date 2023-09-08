@@ -1,10 +1,12 @@
+local editables = require "anidraw.ui.editables"
+
 local ad_stroke_simple_renderer = require "love-util.class" "ad_stroke_simple_renderer"
-ad_stroke_simple_renderer.editables = {
-    {key = "layer"; type = "layer"; name="Layer"; default = nil},
-    {key = "color"; type = "color"; name="Color"; default = {1, 1, 1, 1}},
-    {key = "min_size"; type = "number_slider"; name="Min size"; min = -50; max = 50; step = 1; default = 2},
-    {key = "thickness"; type = "number_slider"; name="Pressure size"; min = -50; max = 50; step = 1; default = 5},
-}
+ad_stroke_simple_renderer.editables = editables:new()
+    :layer("layer", "Layer")
+    :color("color", "Color", {1, 1, 1, 1})
+    :number_slider("min_size", "Min size", -50, 50, 1, 2)
+    :number_slider("thickness", "Pressure size", -50, 50, 1, 5)
+
 
 function ad_stroke_simple_renderer:new(color, size, min_size)
     return self:create {
@@ -48,7 +50,7 @@ local function draw_strokes(output_data, t, min_size, thickness)
 end
 
 function ad_stroke_simple_renderer:draw(ad_stroke, output_data, t, layer)
-    if layer ~= self.layer then return end
+    if layer ~= self.layer then return layer end
     local r,g,b,a = unpack(self.color)
     love.graphics.setColor(r,g,b,a)
     if #output_data == 1 then
@@ -64,6 +66,7 @@ function ad_stroke_simple_renderer:draw(ad_stroke, output_data, t, layer)
     end
     draw_strokes(output_data, t, self.min_size, self.thickness)
     love.graphics.setColor(1, 1, 1)
+    return layer
 end
 
 return ad_stroke_simple_renderer
