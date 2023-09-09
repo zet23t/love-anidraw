@@ -54,12 +54,14 @@ function anidraw:save(path)
     fp:write(data)
     fp:close()
     print("Saved content to " .. path)
+    bench:flush_info()
 end
 
 function anidraw:load(path)
     self.file_path = path or self.file_path or _G._saved_anidraw_path or "default.ad"
     
-    
+    _G._saved_anidraw_path = self.file_path
+
     local suc,err = pcall(function() 
         local fp = assert(io.open(self.file_path, "rb"))
         local data = fp:read("*a")
@@ -111,6 +113,29 @@ function anidraw:new_layer()
     self:notify_modified(layers)
     self:notify_modified(self)
     return new_layer
+end
+
+function anidraw:get_layer_index(layer)
+    local layers = self:get_layers()
+    for i = 1, #layers do
+        if layers[i] == layer then
+            return i
+        end
+    end
+    return nil
+end
+
+function anidraw:set_layer_index(layer, index)
+    local layers = self:get_layers()
+    for i = 1, #layers do
+        if layers[i] == layer then
+            table.remove(layers, i)
+            table.insert(layers, math.min(index, #layers + 1), layer)
+            self:notify_modified(layers)
+            self:notify_modified(self)
+            break
+        end
+    end
 end
 
 function anidraw:remove_layer(layer)
