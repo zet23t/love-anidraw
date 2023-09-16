@@ -1,25 +1,69 @@
-local serialize = require "love-util.serialize"
-local binary_serialize = require "love-util.binary_serialize"
-local anidraw = require "anidraw.instance"
-local bench = require "love-util.bench"
-local draw_group = require "anidraw.draw_group"
-local late_command = require "love-util.late_command"
+local serialize                           = require "love-util.serialize"
+local binary_serialize                    = require "love-util.binary_serialize"
+local anidraw                             = require "anidraw.instance"
+local bench                               = require "love-util.bench"
+local draw_group                          = require "anidraw.draw_group"
+local late_command                        = require "love-util.late_command"
+local recent_files                        = require "config.recent_files"
+local deep_copy                           = require "love-util.deep_copy"
 
-local _mt_weak_keys = {__mode = "k"}
-anidraw.tools = {}
+local _mt_weak_keys                       = { __mode = "k" }
+anidraw.tools                             = {}
 anidraw.registered_notification_listeners = setmetatable({}, _mt_weak_keys)
-anidraw.tools.pen = require "anidraw.tools.pen"
-anidraw.highlighted_instructions = {}
+anidraw.tools.pen                         = require "anidraw.tools.pen"
+anidraw.highlighted_instructions          = {}
+local editing_history                     = {}
 
 function anidraw:add_point(x, y, pressure)
     anidraw.current_action:add(x, y, pressure)
 end
 
-function anidraw:notify_modified(object)
+function anidraw:notify_modified(object, record_undo)
+    if record_undo then
+        while #editing_history > 50 do
+            table.remove(editing_history, 1)
+            editing_history.step = editing_history.step - 1
+        end
+        local record = {
+            data = deep_copy {
+                instructions = self.instructions,
+                selected_objects = self.selected_objects,
+                layers = self.layers,
+            },
+        }
+        if editing_history.step then
+            for i = #editing_history, editing_history.step + 1, -1 do
+                table.remove(editing_history, i)
+            end
+        end
+        editing_history.step = (editing_history.step or 0) + 1
+        editing_history[editing_history.step] = record
+        print("undo recoreded with step ", editing_history.step)
+    end
+
     local dict = anidraw.registered_notification_listeners[object]
     if not dict then return end
     for fn in pairs(dict) do
         fn(object)
+    end
+end
+
+function anidraw:undo()
+    if editing_history.step and editing_history.step > 1 then
+        editing_history.step = editing_history.step - 1
+        print("applying step ", editing_history.step)
+        local record = deep_copy(editing_history[editing_history.step])
+        local new_anidraw = record.data
+        for k, v in pairs(new_anidraw) do
+            self[k] = v
+        end
+        anidraw:clear_canvas()
+        late_command(function()
+            collectgarbage()
+            anidraw:notify_modified(self)
+        end)
+    else
+        print("no undo: ", editing_history.step)
     end
 end
 
@@ -40,7 +84,9 @@ end
 
 function anidraw:save(path)
     self.file_path = path or self.file_path or _G._saved_anidraw_path or "default.ad"
-    path = self.file_path 
+    recent_files:add(self.file_path)
+
+    path = self.file_path
     local done = bench:mark("bin-save")
     local data = table.concat(binary_serialize:serialize {
         instructions = self.instructions,
@@ -58,11 +104,15 @@ function anidraw:save(path)
 end
 
 function anidraw:load(path)
+    if not path then
+        path = recent_files:get_all()[1]
+    end
     self.file_path = path or self.file_path or _G._saved_anidraw_path or "default.ad"
-    
+    recent_files:add(self.file_path)
+
     _G._saved_anidraw_path = self.file_path
 
-    local suc,err = pcall(function() 
+    local suc, err = pcall(function()
         local fp = assert(io.open(self.file_path, "rb"))
         local data = fp:read("*a")
         fp:close()
@@ -75,7 +125,8 @@ function anidraw:load(path)
         late_command(function()
             collectgarbage()
             print("Loaded content from " .. self.file_path)
-            anidraw:notify_modified(self)
+            editing_history = {}
+            anidraw:notify_modified(self, true)
         end)
     end)
     if not suc then
@@ -93,13 +144,15 @@ function anidraw:finish()
     end
 
     anidraw.current_action = nil
+
+    anidraw:notify_modified(self, true)
 end
 
 local layer = require "anidraw.layer"
 
 function anidraw:get_layers()
     local layers = self.layers
-    if not layers then 
+    if not layers then
         layers = {}
         self.layers = layers
     end
@@ -111,7 +164,7 @@ function anidraw:new_layer()
     local new_layer = layer:new()
     layers[#layers + 1] = new_layer
     self:notify_modified(layers)
-    self:notify_modified(self)
+    self:notify_modified(self, true)
     return new_layer
 end
 
@@ -132,7 +185,7 @@ function anidraw:set_layer_index(layer, index)
             table.remove(layers, i)
             table.insert(layers, math.min(index, #layers + 1), layer)
             self:notify_modified(layers)
-            self:notify_modified(self)
+            self:notify_modified(self, true)
             break
         end
     end
@@ -150,7 +203,7 @@ function anidraw:remove_layer(layer)
             end
 
             self:notify_modified(layers)
-            self:notify_modified(self)
+            self:notify_modified(self, true)
             self:clear_canvas()
             break
         end
@@ -273,6 +326,7 @@ function anidraw:delete_instruction(instruction)
             break
         end
     end
+    self:notify_modified(self, true)
 end
 
 function anidraw:replay(replay_speed)
@@ -284,8 +338,12 @@ function anidraw:clear()
     self.instructions = {}
     self.highlighted_instructions = {}
     self.layers = {}
+    editing_history = {}
+    self.file_path = nil
+    _G._saved_anidraw_path = nil
 
     self:notify_modified(self)
+    self:clear_canvas()
 end
 
 function anidraw:set_color(rgba)

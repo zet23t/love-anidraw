@@ -4,7 +4,6 @@ require "love-util.hotswap"
 local ui_rect                       = require "love-ui.ui_rect"
 local text_component                = require "love-ui.components.generic.text_component"
 local pico8_colors                  = require "love-ui.pico8_colors"
-local menubar_widget                = require "love-ui.widget.menubar_widget"
 local parent_size_matcher_component = require "love-ui.components.layout.parent_size_matcher_component"
 local weighted_position_component   = require "love-ui.components.layout.weighted_position_component"
 local linear_layouter_component     = require "love-ui.components.layout.linear_layouter_component"
@@ -20,7 +19,7 @@ local processors                    = require "anidraw.processors"
 love.window.setTitle("love-ani-draw")
 
 
-local layer_data = setmetatable({}, {__mode = "k"})
+local layer_data = setmetatable({}, { __mode = "k" })
 
 local function decorate_as_cmd_bar(left_bar)
     local groups = {}
@@ -85,16 +84,8 @@ local function init(root_rect)
         paint_component.canvas_draw_state = nil
     end
 
-    root_rect:add_component(menubar_widget:new({
-        File_1 = {
-            Load_1 = require "anidraw.ui.load" (root_rect);
-            Revert_2 = function() anidraw:load() end;
-            Save_3 = function() anidraw:save() end;
-            ["Save as_4"] = require "anidraw.ui.save" (root_rect);
-            _5 = true;
-            Exit_6 = function() love.event.quit(0) end;
-        }
-    }, 1))
+    require "anidraw.ui.main_menu_bar":initialize(root_rect)
+
     local client_space = ui_rect:new(0, 0, 0, 0, root_rect, parent_size_matcher_component:new(19, 0, 0, 0))
     local top_bar_rect = ui_rect:new(0, 0, 0, 22, client_space, parent_size_matcher_component:new(0, 0, true, 0),
         rectfill_component:new(5))
@@ -131,22 +122,27 @@ local function init(root_rect)
     top_bar_rect:cmd(ui_theme.icon.save_disk, function() anidraw:save() end)
     top_bar_rect:cmd(ui_theme.icon.open_folder, require "anidraw.ui.load" (root_rect))
     top_bar_rect:cmd_space()
-    top_bar_rect:cmd(ui_theme.icon.undo, function() end)
+    top_bar_rect:cmd(ui_theme.icon.undo, function() anidraw:undo() end)
     top_bar_rect:cmd(ui_theme.icon.redo, function() end)
     top_bar_rect:cmd_space(8)
 
     local add_slider = require "anidraw.ui.add_slider"
 
+    local draw_settings = require "config.draw_settings"
     --top_bar_rect:label("Pressure size:")
-    add_slider("Pressure size: ", 250, 22, top_bar_rect, -50, 50, .1, function(value)
-        anidraw.tools.pen.size = value
-    end)
+    add_slider("Pressure size: ", 250, 22, top_bar_rect, -50, 50, draw_settings:get_pressure_size(), nil, nil, nil,
+        function(value)
+            anidraw.tools.pen.size = value
+            draw_settings:set_pressure_size(value)
+        end)
 
     top_bar_rect:cmd_space(8)
     -- top_bar_rect:label("min size:")
-    add_slider("Min size: ", 250, 22, top_bar_rect, -50, 50, 0, function(value)
-        anidraw.tools.pen.min_size = value
-    end)
+    add_slider("Min size: ", 250, 22, top_bar_rect, -50, 50, draw_settings:get_min_size(), nil, nil, nil,
+        function(value)
+            anidraw.tools.pen.min_size = value
+            draw_settings:set_min_size(value)
+        end)
 
     top_bar_rect:cmd_space(8)
     top_bar_rect:cmd(ui_theme.icon.boundary_paint, function(state)
@@ -154,7 +150,7 @@ local function init(root_rect)
     end, true)
 
     require "anidraw.ui.color_picker_ui":new(right_bar_rect)
-    
+
     local bottom_right_bar = ui_rect:new(0, 0, 0, 0, bottom_bar, parent_size_matcher_component:new(0, 0, 0, 300))
     local bottom_left_bar = ui_rect:new(0, 0, 300, 0, bottom_bar, parent_size_matcher_component:new(30, true, 0, 0))
 
@@ -433,7 +429,7 @@ local function init(root_rect)
             local x, y = rect:to_world()
             local w, h = rect.w, rect.h
             love.graphics.setScissor(x, y, w, h)
-            
+
             love.graphics.push()
             love.graphics.translate(rect:to_world())
             love.graphics.applyTransform(self.transform)
@@ -449,7 +445,7 @@ local function init(root_rect)
         end
 
         local layers = anidraw:get_layers()
-        for i=1,#layers do
+        for i = 1, #layers do
             draw_layer(layers[i])
         end
 

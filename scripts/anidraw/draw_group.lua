@@ -5,14 +5,19 @@ local editables = require "anidraw.ui.editables"
 draw_group.is_group = true
 draw_group.icon = ui_theme.icon.open_folder
 draw_group.mod_count = 0
+draw_group.playback_speed = 1
 draw_group.editables = editables:new()
     :toggle("hidden", "hidden", false)
     :toggle("folded", "folded", false)
+    :number_slider("playback_speed", "playback speed", 0.1, 50, 0.1, 1,
+        function(owner, component)
+            component:update_finish_time()
+        end)
     :toggle("run_children_processors", "run_children_processors", true)
     :toggle("run_children_renderers", "run_children_renderers", true)
     :options("animation_type", "animation type", {
-        {"serial", "serial"},
-        {"parallel", "parallel"},
+        { "serial",   "serial" },
+        { "parallel", "parallel" },
     })
 
 function draw_group:new(name)
@@ -102,7 +107,7 @@ function draw_group:get_preprocessing_components()
 end
 
 function draw_group:get_postprocessing_components()
-    local _,a = self:get_processing_components()
+    local _, a = self:get_processing_components()
     return a
 end
 
@@ -129,6 +134,7 @@ end
 
 function draw_group:update_finish_time()
     local prev_time = self.finish_time
+    local prev_instruction_count = self.prev_instruction_count or 0
     self.finish_time = 0
     for i = 1, #self.instructions do
         local instruction = self.instructions[i]
@@ -136,21 +142,24 @@ function draw_group:update_finish_time()
             self.finish_time = instruction.finish_time + self.finish_time
         end
     end
-    if self.finish_time ~= prev_time then
+    self.prev_instruction_count = #self.instructions
+    self.finish_time = self.finish_time / self.playback_speed
+    if prev_instruction_count ~= #self.instructions then
         anidraw:trigger_selected_objects_changed()
     end
 end
 
 function draw_group:draw_highlight()
-    for i=1,#self.instructions do
+    for i = 1, #self.instructions do
         local instruction = self.instructions[i]
         if not instruction.hidden and instruction.draw_highlight then
-            instruction:draw_highlight() 
+            instruction:draw_highlight()
         end
     end
 end
 
 function draw_group:draw(t, draw_state, draw_temporary, layer)
+    t = t * self.playback_speed
     self:update_finish_time()
     if #self.instructions > 0 then
         local start_time = self.instructions[1].start_time

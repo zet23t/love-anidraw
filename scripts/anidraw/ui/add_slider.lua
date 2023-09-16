@@ -4,7 +4,7 @@ local rectfill_component = require "love-ui.components.generic.rectfill_componen
 
 local invlerp            = require "love-math.invlerp"
 
-local function add_slider(title, width, height, parent, min, max, value, on_change, x, y)
+local function add_slider(title, width, height, parent, min, max, value, on_change, x, y, on_was_released)
     local current_value = value
     value = invlerp(min, max, value)
     local slider_rect = ui_rect:new(x or 0, y or 0, width, height, parent, rectfill_component:new(1))
@@ -13,7 +13,7 @@ local function add_slider(title, width, height, parent, min, max, value, on_chan
     local slider_text_rect = ui_rect:new(0, 0, slider_rect.w, slider_rect.h, slider_rect,
         text_component:new(""))
 
-    local function set_slider_value(value)
+    local function set_slider_value(value, was_released)
         if not value then 
             return current_value
         end
@@ -25,12 +25,18 @@ local function add_slider(title, width, height, parent, min, max, value, on_chan
         slider_bar_rect.w = math.max(1, math.min(maxw, value * maxw))
         value = min + (max - min) * value
         slider_text_rect:trigger_on_components("set_text", string.format("%s%.2f", title or " ", value))
-        on_change(value)
+        if on_change then on_change(value) end
+        if was_released and on_was_released then
+            on_was_released(value)
+        end
     end
     slider_rect:add_component {
         is_pressed_down = function(cmp, rect, mx, my)
             set_slider_value(math.max(0, math.min(1, mx / rect.w)))
-        end
+        end,
+        was_released = function(cmp, rect, mx, my)
+            set_slider_value(math.max(0, math.min(1, mx / rect.w)), true)
+        end,
     }
     set_slider_value(value)
     return set_slider_value

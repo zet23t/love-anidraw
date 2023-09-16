@@ -58,14 +58,23 @@ function object_inspector:initialize(right_bar_rect)
         end
         for i = 1, #component.editables do
             local info = component.editables[i]
+            local function was_changed(final)
+                if info.on_changed and final then
+                    info.on_changed(owner, component, info.key, component[info.key])
+                end
+                anidraw:notify_modified(owner)
+                clear()
+            end
             local key = info.key
             local value = component[key] or info.default
             local rect = ui_rect:new(0, 0, parent.w, 20, parent)
             if info.type == "number_slider" then
                 add_slider((info.name or key) .. ": ", parent.w, 20, rect, info.min, info.max, value, function(value)
                     component[key] = value
-                    anidraw:notify_modified(owner)
-                    clear()
+                    was_changed()
+                end, nil, nil, function(value)
+                    component[key] = value
+                    was_changed(true)
                 end)
             elseif info.type == "layer" then
                 local def_name = { name = "<unset>" }
@@ -81,8 +90,7 @@ function object_inspector:initialize(right_bar_rect)
                     local layer_menu = {}
                     layer_menu["unset layer_1"] = function()
                         component[key] = nil
-                        anidraw:notify_modified(owner)
-                        anidraw:clear_canvas()
+                        was_changed(true)
                     end
                     local layers = anidraw:get_layers()
                     for i = 1, #layers do
@@ -104,9 +112,7 @@ function object_inspector:initialize(right_bar_rect)
             elseif info.type == "toggle" then
                 ui_theme:decorate_toggle_skin(rect, (info.name or key), value, function(state)
                     component[key] = state
-                    anidraw:notify_modified(owner)
-                    clear()
-                    anidraw:notify_modified(owner)
+                    was_changed(true)
                 end)
             elseif info.type == "color" then
                 rect:add_component(text_component:new((info.name or key) .. ":", 0, 0, 0, 0, 0, 0))
@@ -124,8 +130,7 @@ function object_inspector:initialize(right_bar_rect)
                         func = function()
                             component[key] = pico8_colors[index]
                             color_preview:trigger_on_components("set_fill", pico8_colors[index])
-                            anidraw:notify_modified(owner)
-                            anidraw:clear_canvas()
+                            was_changed(true)
                         end
                     }
                 end
